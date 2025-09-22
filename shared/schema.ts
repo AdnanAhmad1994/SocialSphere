@@ -50,11 +50,21 @@ export const posts = pgTable("posts", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+// Whitelisted emails table
+export const whitelistedEmails = pgTable("whitelisted_emails", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  email: varchar("email").notNull().unique(),
+  addedBy: varchar("added_by").notNull().references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // Schema types
 export type UpsertUser = typeof users.$inferInsert;
 export type User = typeof users.$inferSelect;
 export type InsertPost = typeof posts.$inferInsert;
 export type Post = typeof posts.$inferSelect;
+export type InsertWhitelistedEmail = typeof whitelistedEmails.$inferInsert;
+export type WhitelistedEmail = typeof whitelistedEmails.$inferSelect;
 
 // Validation schemas
 export const insertPostSchema = createInsertSchema(posts).pick({
@@ -69,5 +79,12 @@ export const updatePostSchema = z.object({
   images: z.array(z.string()).max(4, "Maximum 4 images allowed").optional(),
 });
 
+export const insertWhitelistedEmailSchema = createInsertSchema(whitelistedEmails).pick({
+  email: true,
+}).extend({
+  email: z.string().email("Valid email address is required"),
+});
+
 export type InsertPostData = z.infer<typeof insertPostSchema>;
 export type UpdatePostData = z.infer<typeof updatePostSchema>;
+export type InsertWhitelistedEmailData = z.infer<typeof insertWhitelistedEmailSchema>;
