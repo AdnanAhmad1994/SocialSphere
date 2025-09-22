@@ -47,7 +47,7 @@ export default function SocialMediaPreview({ post }: SocialMediaPreviewProps) {
       {/* Post Content */}
       <div className="p-3">
         <p className="text-sm text-gray-900 dark:text-white mb-2">
-          🎉 Celebrating our amazing {post.author.role} {post.author.name}!
+          Celebrating our amazing {post.author.role} {post.author.name}!
         </p>
         <p className="text-sm text-gray-700 dark:text-gray-300">
           {truncatedCaption}
@@ -73,7 +73,7 @@ export default function SocialMediaPreview({ post }: SocialMediaPreviewProps) {
       {/* Facebook Actions */}
       <div className="p-3 border-t border-gray-200 dark:border-gray-700">
         <div className="flex items-center justify-between text-gray-500 dark:text-gray-400 text-sm mb-2">
-          <span>👍❤️ 42 others</span>
+          <span>42 others like this</span>
           <span>8 comments • 5 shares</span>
         </div>
         <div className="flex items-center justify-around py-2 border-t border-gray-200 dark:border-gray-700">
@@ -223,21 +223,21 @@ export default function SocialMediaPreview({ post }: SocialMediaPreviewProps) {
       {/* LinkedIn Actions */}
       <div className="p-4 border-t border-gray-200 dark:border-gray-700">
         <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400 mb-3">
-          <span>👍💡❤️ 87 reactions</span>
+          <span>87 reactions</span>
           <span>12 comments • 8 reposts</span>
         </div>
         <div className="flex items-center justify-around">
           <button className="flex items-center gap-1 text-gray-600 dark:text-gray-400 hover:text-blue-600 py-2 px-4 rounded">
-            <span className="text-sm">👍 Like</span>
+            <span className="text-sm">Like</span>
           </button>
           <button className="flex items-center gap-1 text-gray-600 dark:text-gray-400 hover:text-blue-600 py-2 px-4 rounded">
-            <span className="text-sm">💬 Comment</span>
+            <span className="text-sm">Comment</span>
           </button>
           <button className="flex items-center gap-1 text-gray-600 dark:text-gray-400 hover:text-blue-600 py-2 px-4 rounded">
-            <span className="text-sm">🔄 Repost</span>
+            <span className="text-sm">Repost</span>
           </button>
           <button className="flex items-center gap-1 text-gray-600 dark:text-gray-400 hover:text-blue-600 py-2 px-4 rounded">
-            <span className="text-sm">📤 Send</span>
+            <span className="text-sm">Send</span>
           </button>
         </div>
       </div>

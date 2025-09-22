@@ -1,4 +1,4 @@
-import type { Express } from "express";
+import express, { type Express } from "express";
 import { createServer, type Server } from "http";
 import multer from "multer";
 import { storage } from "./storage";
@@ -317,7 +317,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Serve public images from object storage using express.static for security
-  const express = require('express');
   app.use('/public', express.static('/tmp/uploads', {
     maxAge: '1y',
     immutable: true,
