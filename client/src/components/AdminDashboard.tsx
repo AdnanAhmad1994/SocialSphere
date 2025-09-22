@@ -1,10 +1,14 @@
 import { useState } from "react";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import { 
   Search, 
   Filter, 
@@ -14,7 +18,11 @@ import {
   Users, 
   FileText, 
   TrendingUp,
-  Calendar
+  Calendar,
+  Mail,
+  Upload,
+  Plus,
+  Trash2
 } from "lucide-react";
 import PostCard from "./PostCard";
 
@@ -57,6 +65,77 @@ export default function AdminDashboard({
   const [statusFilter, setStatusFilter] = useState("all");
   const [roleFilter, setRoleFilter] = useState("all");
   const [selectedPosts, setSelectedPosts] = useState<string[]>([]);
+  
+  // Email whitelist state
+  const [newEmail, setNewEmail] = useState("");
+  const [csvContent, setCsvContent] = useState("");
+  const { toast } = useToast();
+
+  // Fetch whitelisted emails
+  const { data: whitelistedEmails = [] } = useQuery<any[]>({
+    queryKey: ['/api/admin/whitelist'],
+  });
+
+  // Add email mutation
+  const addEmailMutation = useMutation({
+    mutationFn: (email: string) => apiRequest('POST', '/api/admin/whitelist', { email }),
+    onSuccess: () => {
+      toast({
+        title: "Email Added",
+        description: "Email has been added to the whitelist successfully.",
+      });
+      setNewEmail("");
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/whitelist'] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message.includes("409") 
+          ? "Email is already whitelisted" 
+          : "Failed to add email to whitelist",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Remove email mutation
+  const removeEmailMutation = useMutation({
+    mutationFn: (id: string) => apiRequest('DELETE', `/api/admin/whitelist/${id}`),
+    onSuccess: () => {
+      toast({
+        title: "Email Removed",
+        description: "Email has been removed from the whitelist successfully.",
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/whitelist'] });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to remove email from whitelist",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Bulk add emails mutation
+  const bulkAddEmailsMutation = useMutation({
+    mutationFn: (csvContent: string) => apiRequest('POST', '/api/admin/whitelist/bulk', { csvContent }),
+    onSuccess: (response: any) => {
+      toast({
+        title: "Emails Added",
+        description: response.message,
+      });
+      setCsvContent("");
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/whitelist'] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: "Failed to bulk add emails",
+        variant: "destructive",
+      });
+    },
+  });
 
   // todo: remove mock functionality
   const mockPosts = [
@@ -118,12 +197,28 @@ export default function AdminDashboard({
     }
   };
 
+  const handleAddEmail = () => {
+    if (newEmail.trim()) {
+      addEmailMutation.mutate(newEmail.trim());
+    }
+  };
+
+  const handleBulkAddEmails = () => {
+    if (csvContent.trim()) {
+      bulkAddEmailsMutation.mutate(csvContent.trim());
+    }
+  };
+
+  const handleRemoveEmail = (id: string) => {
+    removeEmailMutation.mutate(id);
+  };
+
   return (
     <div className="max-w-6xl mx-auto p-6 space-y-6">
       {/* Dashboard Header */}
       <div>
         <h1 className="text-3xl font-bold text-foreground">Admin Dashboard</h1>
-        <p className="text-muted-foreground">Manage social media content for Riphah School</p>
+        <p className="text-muted-foreground">Manage social media content and email whitelist for Riphah School</p>
       </div>
 
       {/* Stats Cards */}
@@ -189,8 +284,22 @@ export default function AdminDashboard({
         </Card>
       </div>
 
-      {/* Filters and Search */}
-      <Card>
+      {/* Tabs for different management sections */}
+      <Tabs defaultValue="posts" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="posts" data-testid="tab-posts">
+            <FileText className="mr-2 h-4 w-4" />
+            Posts Management
+          </TabsTrigger>
+          <TabsTrigger value="emails" data-testid="tab-emails">
+            <Mail className="mr-2 h-4 w-4" />
+            Email Whitelist
+          </TabsTrigger>
+        </TabsList>
+
+        {/* Posts Management Tab */}
+        <TabsContent value="posts">
+          <Card>
         <CardHeader>
           <CardTitle className="text-lg">Manage Posts</CardTitle>
           <CardDescription>Review, approve, or reject submitted content</CardDescription>
@@ -300,6 +409,110 @@ export default function AdminDashboard({
           </Card>
         )}
       </div>
+        </TabsContent>
+
+        {/* Email Whitelist Tab */}
+        <TabsContent value="emails">
+          <div className="space-y-6">
+            {/* Add Email Section */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Add Email to Whitelist</CardTitle>
+                <CardDescription>Add individual emails or bulk upload via CSV</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {/* Individual Email Add */}
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="Enter email address..."
+                    value={newEmail}
+                    onChange={(e) => setNewEmail(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleAddEmail()}
+                    data-testid="input-email-address"
+                  />
+                  <Button 
+                    onClick={handleAddEmail}
+                    disabled={!newEmail.trim() || addEmailMutation.isPending}
+                    data-testid="button-add-email"
+                  >
+                    <Plus className="mr-2 h-4 w-4" />
+                    Add Email
+                  </Button>
+                </div>
+
+                {/* CSV Bulk Upload */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Bulk Add from CSV</label>
+                  <Textarea
+                    placeholder="Paste CSV content here (one email per line or comma-separated)..."
+                    value={csvContent}
+                    onChange={(e) => setCsvContent(e.target.value)}
+                    rows={4}
+                    data-testid="textarea-csv-content"
+                  />
+                  <Button 
+                    onClick={handleBulkAddEmails}
+                    disabled={!csvContent.trim() || bulkAddEmailsMutation.isPending}
+                    data-testid="button-bulk-add-emails"
+                  >
+                    <Upload className="mr-2 h-4 w-4" />
+                    Bulk Add Emails
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Whitelisted Emails List */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Whitelisted Emails</CardTitle>
+                <CardDescription>
+                  Only these emails can submit posts. Total: {whitelistedEmails.length} emails
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {whitelistedEmails.length > 0 ? (
+                  <div className="space-y-2">
+                    {whitelistedEmails.map((emailEntry: any) => (
+                      <div
+                        key={emailEntry.id}
+                        className="flex items-center justify-between p-3 border rounded-lg hover-elevate"
+                      >
+                        <div className="flex-1">
+                          <p className="font-medium" data-testid={`text-email-${emailEntry.id}`}>
+                            {emailEntry.email}
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            Added by {emailEntry.addedByAdmin?.name} on{' '}
+                            {new Date(emailEntry.createdAt).toLocaleDateString()}
+                          </p>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleRemoveEmail(emailEntry.id)}
+                          disabled={removeEmailMutation.isPending}
+                          data-testid={`button-remove-email-${emailEntry.id}`}
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8">
+                    <Mail className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                    <p className="text-lg font-medium text-muted-foreground">No whitelisted emails</p>
+                    <p className="text-sm text-muted-foreground">
+                      Add emails above to allow users to submit posts
+                    </p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
