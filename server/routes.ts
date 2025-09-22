@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import multer from "multer";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./replitAuth";
-import { insertPostSchema, updatePostSchema, type InsertPostData, type UpdatePostData } from "@shared/schema";
+import { insertPostSchema, updatePostSchema, insertWhitelistedEmailSchema, type InsertPostData, type UpdatePostData, type InsertWhitelistedEmailData } from "@shared/schema";
 import { z } from "zod";
 import { uploadToObjectStorage } from "./objectStorage";
 
@@ -439,6 +439,156 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching stats:", error);
       res.status(500).json({ message: "Failed to fetch stats" });
+    }
+  });
+
+  // Admin whitelist management routes
+  app.get('/api/admin/whitelist', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (!user || user.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const whitelistedEmails = await storage.getAllWhitelistedEmails();
+      
+      // Include admin information for each entry
+      const emailsWithAdminInfo = await Promise.all(
+        whitelistedEmails.map(async (email) => {
+          const admin = await storage.getUser(email.addedBy);
+          return {
+            ...email,
+            addedByAdmin: admin ? {
+              name: `${admin.firstName || ''} ${admin.lastName || ''}`.trim() || admin.email || 'Unknown',
+              email: admin.email
+            } : {
+              name: 'Unknown Admin',
+              email: null
+            }
+          };
+        })
+      );
+
+      res.json(emailsWithAdminInfo);
+    } catch (error) {
+      console.error("Error fetching whitelisted emails:", error);
+      res.status(500).json({ message: "Failed to fetch whitelisted emails" });
+    }
+  });
+
+  app.post('/api/admin/whitelist', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (!user || user.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const validation = insertWhitelistedEmailSchema.safeParse(req.body);
+      if (!validation.success) {
+        return res.status(400).json({
+          message: "Validation failed",
+          errors: validation.error.errors
+        });
+      }
+
+      const { email } = validation.data;
+      
+      // Check if email is already whitelisted
+      const isAlreadyWhitelisted = await storage.isEmailWhitelisted(email);
+      if (isAlreadyWhitelisted) {
+        return res.status(409).json({ message: "Email is already whitelisted" });
+      }
+
+      const whitelistedEmail = await storage.addWhitelistedEmail(email, userId);
+      res.status(201).json(whitelistedEmail);
+    } catch (error) {
+      console.error("Error adding whitelisted email:", error);
+      res.status(500).json({ message: "Failed to add whitelisted email" });
+    }
+  });
+
+  app.delete('/api/admin/whitelist/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (!user || user.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const { id } = req.params;
+      await storage.removeWhitelistedEmail(id);
+      res.json({ message: "Email removed from whitelist successfully" });
+    } catch (error) {
+      console.error("Error removing whitelisted email:", error);
+      res.status(500).json({ message: "Failed to remove whitelisted email" });
+    }
+  });
+
+  app.post('/api/admin/whitelist/bulk', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (!user || user.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const { emails, csvContent } = req.body;
+      let emailsToAdd: string[] = [];
+
+      if (csvContent) {
+        // Parse CSV content (simple comma/newline separated values)
+        const parsedEmails = csvContent
+          .split(/[,\n\r]+/)
+          .map((email: string) => email.trim())
+          .filter((email: string) => email.length > 0 && email.includes('@'));
+        emailsToAdd = parsedEmails;
+      } else if (emails && Array.isArray(emails)) {
+        emailsToAdd = emails;
+      } else {
+        return res.status(400).json({ message: "Either 'emails' array or 'csvContent' is required" });
+      }
+
+      if (emailsToAdd.length === 0) {
+        return res.status(400).json({ message: "No valid emails provided" });
+      }
+
+      // Validate all emails
+      const invalidEmails: string[] = [];
+      const validEmails: string[] = [];
+      
+      emailsToAdd.forEach(email => {
+        const validation = z.string().email().safeParse(email);
+        if (validation.success) {
+          validEmails.push(email);
+        } else {
+          invalidEmails.push(email);
+        }
+      });
+
+      if (validEmails.length === 0) {
+        return res.status(400).json({ 
+          message: "No valid emails found", 
+          invalidEmails 
+        });
+      }
+
+      const addedEmails = await storage.bulkAddWhitelistedEmails(validEmails, userId);
+      
+      res.status(201).json({
+        message: `Successfully added ${addedEmails.length} emails to whitelist`,
+        addedEmails,
+        skippedEmails: validEmails.length - addedEmails.length,
+        invalidEmails
+      });
+    } catch (error) {
+      console.error("Error bulk adding whitelisted emails:", error);
+      res.status(500).json({ message: "Failed to bulk add whitelisted emails" });
     }
   });
 

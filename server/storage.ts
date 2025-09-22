@@ -171,7 +171,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async bulkAddWhitelistedEmails(emails: string[], addedBy: string): Promise<WhitelistedEmail[]> {
-    const uniqueEmails = [...new Set(emails.map(email => email.toLowerCase()))];
+    const uniqueEmails = Array.from(new Set(emails.map(email => email.toLowerCase())));
     const values = uniqueEmails.map(email => ({
       email,
       addedBy,
@@ -332,7 +332,7 @@ export class MemStorage implements IStorage {
   }
 
   async bulkAddWhitelistedEmails(emails: string[], addedBy: string): Promise<WhitelistedEmail[]> {
-    const uniqueEmails = [...new Set(emails.map(email => email.toLowerCase()))];
+    const uniqueEmails = Array.from(new Set(emails.map(email => email.toLowerCase())));
     const addedEmails: WhitelistedEmail[] = [];
     
     for (const email of uniqueEmails) {
