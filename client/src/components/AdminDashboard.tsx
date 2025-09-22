@@ -78,7 +78,7 @@ export default function AdminDashboard({
 
   // Add email mutation
   const addEmailMutation = useMutation({
-    mutationFn: (email: string) => apiRequest('/api/admin/whitelist', 'POST', { email }),
+    mutationFn: (email: string) => apiRequest('POST', '/api/admin/whitelist', { email }),
     onSuccess: () => {
       toast({
         title: "Email Added",
@@ -100,7 +100,7 @@ export default function AdminDashboard({
 
   // Remove email mutation
   const removeEmailMutation = useMutation({
-    mutationFn: (id: string) => apiRequest(`/api/admin/whitelist/${id}`, 'DELETE'),
+    mutationFn: (id: string) => apiRequest('DELETE', `/api/admin/whitelist/${id}`),
     onSuccess: () => {
       toast({
         title: "Email Removed",
@@ -119,7 +119,7 @@ export default function AdminDashboard({
 
   // Bulk add emails mutation
   const bulkAddEmailsMutation = useMutation({
-    mutationFn: (csvContent: string) => apiRequest('/api/admin/whitelist/bulk', 'POST', { csvContent }),
+    mutationFn: (csvContent: string) => apiRequest('POST', '/api/admin/whitelist/bulk', { csvContent }),
     onSuccess: (response: any) => {
       toast({
         title: "Emails Added",

@@ -496,15 +496,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/admin/whitelist', isAuthenticated, async (req: any, res) => {
     try {
+      console.log('POST /api/admin/whitelist - Request body:', req.body);
       const userId = req.user.claims.sub;
       const user = await storage.getUser(userId);
       
       if (!user || user.role !== 'admin') {
+        console.log('Admin access denied for user:', user?.email);
         return res.status(403).json({ message: "Admin access required" });
       }
 
       const validation = insertWhitelistedEmailSchema.safeParse(req.body);
       if (!validation.success) {
+        console.log('Validation failed:', validation.error.errors);
         return res.status(400).json({
           message: "Validation failed",
           errors: validation.error.errors
