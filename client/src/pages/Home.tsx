@@ -158,6 +158,17 @@ export default function Home() {
         }, 500);
         return;
       }
+      
+      // Check for whitelist error (403 status)
+      if (error.message.includes("403")) {
+        toast({
+          title: "Email Not Authorized",
+          description: "Your email is not authorized to submit posts. Please contact an administrator to be added to the whitelist.",
+          variant: "destructive",
+        });
+        return;
+      }
+
       toast({
         title: "Error",
         description: "Failed to submit post. Please try again.",

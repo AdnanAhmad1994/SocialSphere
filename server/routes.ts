@@ -130,6 +130,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Check if user's email is whitelisted (admin users are exempt)
       if (user.role !== 'admin') {
+        if (!user.email) {
+          return res.status(403).json({ 
+            message: "Your email is not available. Please contact an administrator to be added to the whitelist." 
+          });
+        }
+        
         const isWhitelisted = await storage.isEmailWhitelisted(user.email);
         if (!isWhitelisted) {
           return res.status(403).json({ 
