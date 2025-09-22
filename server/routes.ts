@@ -181,7 +181,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Generate shareable link for approved posts
-      const shareableLink = `https://${req.hostname}/posts/${postId}`;
+      const protocol = req.get('X-Forwarded-Proto') || req.protocol || 'https';
+      const shareableLink = `${protocol}://${req.get('host')}/posts/${postId}`;
       await storage.updatePostShareableLink(postId, shareableLink);
 
       res.json({ ...post, shareableLink });
@@ -251,6 +252,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         `${author.firstName || ''} ${author.lastName || ''}`.trim() || author.email || 'Unknown' :
         'Unknown User';
 
+      // Escape HTML to prevent XSS
+      const escapeHtml = (text: string) => {
+        return text
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#x27;');
+      };
+
+      const escapedAuthorName = escapeHtml(authorName);
+      const escapedCaption = escapeHtml(post.caption);
+      const escapedDescription = escapeHtml(post.caption.substring(0, 160));
+
       // Simple HTML page for sharing
       const html = `
         <!DOCTYPE html>
@@ -258,16 +273,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         <head>
           <meta charset="UTF-8">
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <title>Riphah School Post - ${authorName}</title>
-          <meta name="description" content="${post.caption.substring(0, 160)}...">
-          <meta property="og:title" content="Riphah School Post by ${authorName}">
-          <meta property="og:description" content="${post.caption.substring(0, 160)}...">
+          <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; style-src 'unsafe-inline';">
+          <title>Riphah School Post - ${escapedAuthorName}</title>
+          <meta name="description" content="${escapedDescription}...">
+          <meta property="og:title" content="Riphah School Post by ${escapedAuthorName}">
+          <meta property="og:description" content="${escapedDescription}...">
           <meta property="og:type" content="article">
           <style>
             body { font-family: Inter, sans-serif; max-width: 600px; margin: 2rem auto; padding: 1rem; }
             .post { border: 1px solid #e5e7eb; border-radius: 8px; padding: 1.5rem; }
             .author { font-weight: 600; margin-bottom: 0.5rem; }
-            .caption { line-height: 1.6; margin-bottom: 1rem; }
+            .caption { line-height: 1.6; margin-bottom: 1rem; white-space: pre-wrap; }
             .images { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0.5rem; }
             .images img { width: 100%; height: 200px; object-fit: cover; border-radius: 4px; }
             .meta { color: #6b7280; font-size: 0.875rem; margin-top: 1rem; }
@@ -275,11 +291,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         </head>
         <body>
           <div class="post">
-            <div class="author">Posted by ${authorName}</div>
-            <div class="caption">${post.caption}</div>
+            <div class="author">Posted by ${escapedAuthorName}</div>
+            <div class="caption">${escapedCaption}</div>
             ${post.images && post.images.length > 0 ? `
               <div class="images">
-                ${post.images.map(img => `<img src="${img}" alt="Post image">`).join('')}
+                ${post.images.map(img => `<img src="${escapeHtml(img)}" alt="Post image">`).join('')}
               </div>
             ` : ''}
             <div class="meta">
@@ -301,8 +317,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/public/:folder/:filename', (req, res) => {
     try {
       const { folder, filename } = req.params;
-      const publicPath = `${process.env.PUBLIC_OBJECT_SEARCH_PATHS?.[0] || '/tmp'}/${folder}/${filename}`;
-      res.sendFile(publicPath, (err) => {
+      
+      // Parse the PUBLIC_OBJECT_SEARCH_PATHS correctly
+      let publicBasePath = '/tmp';
+      if (process.env.PUBLIC_OBJECT_SEARCH_PATHS) {
+        try {
+          const paths = JSON.parse(process.env.PUBLIC_OBJECT_SEARCH_PATHS);
+          if (Array.isArray(paths) && paths.length > 0) {
+            publicBasePath = paths[0];
+          }
+        } catch (e) {
+          // If parsing fails, use the value as is
+          publicBasePath = process.env.PUBLIC_OBJECT_SEARCH_PATHS;
+        }
+      }
+      
+      const path = require('path');
+      const publicPath = path.join(publicBasePath, folder, filename);
+      
+      // Add cache headers for public assets
+      res.set({
+        'Cache-Control': 'public, max-age=31536000, immutable', // 1 year cache
+        'Content-Type': filename.endsWith('.jpg') || filename.endsWith('.jpeg') ? 'image/jpeg' :
+                       filename.endsWith('.png') ? 'image/png' :
+                       filename.endsWith('.gif') ? 'image/gif' :
+                       filename.endsWith('.webp') ? 'image/webp' : 'application/octet-stream'
+      });
+      
+      res.sendFile(path.resolve(publicPath), (err) => {
         if (err) {
           console.error('Error serving file:', err);
           res.status(404).send('File not found');
