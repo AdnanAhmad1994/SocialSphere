@@ -1,10 +1,13 @@
 import { 
   users, 
   posts, 
+  whitelistedEmails,
   type User, 
   type UpsertUser, 
   type Post, 
-  type InsertPost 
+  type InsertPost,
+  type WhitelistedEmail,
+  type InsertWhitelistedEmail
 } from "@shared/schema";
 import { randomUUID } from "crypto";
 import { db } from "./db";
@@ -26,6 +29,13 @@ export interface IStorage {
   updatePost(postId: string, updates: { caption?: string; images?: string[] }): Promise<Post | undefined>;
   getPostById(postId: string): Promise<Post | undefined>;
   deletePost(postId: string): Promise<void>;
+  
+  // Whitelisted email operations
+  addWhitelistedEmail(email: string, addedBy: string): Promise<WhitelistedEmail>;
+  removeWhitelistedEmail(id: string): Promise<void>;
+  getAllWhitelistedEmails(): Promise<WhitelistedEmail[]>;
+  isEmailWhitelisted(email: string): Promise<boolean>;
+  bulkAddWhitelistedEmails(emails: string[], addedBy: string): Promise<WhitelistedEmail[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -128,16 +138,63 @@ export class DatabaseStorage implements IStorage {
   async deletePost(postId: string): Promise<void> {
     await db.delete(posts).where(eq(posts.id, postId));
   }
+
+  // Whitelisted email operations
+  async addWhitelistedEmail(email: string, addedBy: string): Promise<WhitelistedEmail> {
+    const [whitelistedEmail] = await db
+      .insert(whitelistedEmails)
+      .values({
+        email: email.toLowerCase(),
+        addedBy,
+      })
+      .returning();
+    return whitelistedEmail;
+  }
+
+  async removeWhitelistedEmail(id: string): Promise<void> {
+    await db.delete(whitelistedEmails).where(eq(whitelistedEmails.id, id));
+  }
+
+  async getAllWhitelistedEmails(): Promise<WhitelistedEmail[]> {
+    return await db
+      .select()
+      .from(whitelistedEmails)
+      .orderBy(desc(whitelistedEmails.createdAt));
+  }
+
+  async isEmailWhitelisted(email: string): Promise<boolean> {
+    const [result] = await db
+      .select()
+      .from(whitelistedEmails)
+      .where(eq(whitelistedEmails.email, email.toLowerCase()));
+    return !!result;
+  }
+
+  async bulkAddWhitelistedEmails(emails: string[], addedBy: string): Promise<WhitelistedEmail[]> {
+    const uniqueEmails = [...new Set(emails.map(email => email.toLowerCase()))];
+    const values = uniqueEmails.map(email => ({
+      email,
+      addedBy,
+    }));
+    
+    return await db
+      .insert(whitelistedEmails)
+      .values(values)
+      .onConflictDoNothing()
+      .returning();
+  }
 }
 
 // In-memory storage for development/testing
 export class MemStorage implements IStorage {
   private users: Map<string, User>;
   private posts: Map<string, Post>;
+  private whitelistedEmails: Map<string, WhitelistedEmail>;
 
   constructor() {
     this.users = new Map();
     this.posts = new Map();
+    this.whitelistedEmails = new Map();
   }
 
   async getUser(id: string): Promise<User | undefined> {
@@ -243,6 +300,54 @@ export class MemStorage implements IStorage {
 
   async deletePost(postId: string): Promise<void> {
     this.posts.delete(postId);
+  }
+
+  // Whitelisted email operations
+  async addWhitelistedEmail(email: string, addedBy: string): Promise<WhitelistedEmail> {
+    const id = randomUUID();
+    const whitelistedEmail: WhitelistedEmail = {
+      id,
+      email: email.toLowerCase(),
+      addedBy,
+      createdAt: new Date(),
+    };
+    this.whitelistedEmails.set(id, whitelistedEmail);
+    return whitelistedEmail;
+  }
+
+  async removeWhitelistedEmail(id: string): Promise<void> {
+    this.whitelistedEmails.delete(id);
+  }
+
+  async getAllWhitelistedEmails(): Promise<WhitelistedEmail[]> {
+    return Array.from(this.whitelistedEmails.values())
+      .sort((a, b) => (b.createdAt?.getTime() || 0) - (a.createdAt?.getTime() || 0));
+  }
+
+  async isEmailWhitelisted(email: string): Promise<boolean> {
+    const normalizedEmail = email.toLowerCase();
+    return Array.from(this.whitelistedEmails.values()).some(
+      whitelisted => whitelisted.email === normalizedEmail
+    );
+  }
+
+  async bulkAddWhitelistedEmails(emails: string[], addedBy: string): Promise<WhitelistedEmail[]> {
+    const uniqueEmails = [...new Set(emails.map(email => email.toLowerCase()))];
+    const addedEmails: WhitelistedEmail[] = [];
+    
+    for (const email of uniqueEmails) {
+      // Check if email already exists
+      const exists = Array.from(this.whitelistedEmails.values()).some(
+        whitelisted => whitelisted.email === email
+      );
+      
+      if (!exists) {
+        const newEmail = await this.addWhitelistedEmail(email, addedBy);
+        addedEmails.push(newEmail);
+      }
+    }
+    
+    return addedEmails;
   }
 }
 
