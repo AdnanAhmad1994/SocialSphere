@@ -5,6 +5,7 @@ import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./replitAuth";
 import { insertPostSchema, type InsertPostData } from "@shared/schema";
 import { z } from "zod";
+import { uploadToObjectStorage } from "./objectStorage";
 
 // Configure multer for file uploads (in memory for now)
 const upload = multer({ 
@@ -130,16 +131,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Validate request body
       const validatedData = insertPostSchema.parse({
         caption: req.body.caption,
-        images: req.body.images ? JSON.parse(req.body.images) : []
+        images: []
       });
 
-      // For now, we'll store uploaded images as data URLs
-      // In a real app, you'd upload to object storage and store URLs
+      // Upload images to object storage
       const imageUrls: string[] = [];
       if (req.files && Array.isArray(req.files)) {
-        for (const file of req.files) {
-          const dataUrl = `data:${file.mimetype};base64,${file.buffer.toString('base64')}`;
-          imageUrls.push(dataUrl);
+        try {
+          for (const file of req.files) {
+            const imageUrl = await uploadToObjectStorage(file, 'posts');
+            imageUrls.push(imageUrl);
+          }
+        } catch (uploadError) {
+          console.error("Error uploading images:", uploadError);
+          return res.status(500).json({ message: "Failed to upload images" });
         }
       }
 
@@ -289,6 +294,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error viewing shared post:", error);
       res.status(500).send('Error loading post');
+    }
+  });
+
+  // Serve public images from object storage
+  app.get('/public/:folder/:filename', (req, res) => {
+    try {
+      const { folder, filename } = req.params;
+      const publicPath = `${process.env.PUBLIC_OBJECT_SEARCH_PATHS?.[0] || '/tmp'}/${folder}/${filename}`;
+      res.sendFile(publicPath, (err) => {
+        if (err) {
+          console.error('Error serving file:', err);
+          res.status(404).send('File not found');
+        }
+      });
+    } catch (error) {
+      console.error('Error serving public file:', error);
+      res.status(500).send('Error serving file');
     }
   });
 
