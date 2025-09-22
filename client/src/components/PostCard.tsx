@@ -18,7 +18,9 @@ import {
   Calendar, 
   User,
   Eye,
-  MessageSquare
+  MessageSquare,
+  Edit3,
+  Trash2
 } from "lucide-react";
 import SocialMediaPreview from "./SocialMediaPreview";
 
@@ -29,6 +31,7 @@ interface Post {
   id: string;
   caption: string;
   images?: string[];
+  authorId: string;
   author: {
     name: string;
     role: UserRole;
@@ -44,19 +47,23 @@ interface Post {
 interface PostCardProps {
   post: Post;
   currentUserRole?: UserRole;
+  currentUserId?: string;
   onApprove?: (id: string) => void;
   onReject?: (id: string) => void;
   onShare?: (id: string) => void;
   onDelete?: (id: string) => void;
+  onEdit?: (id: string) => void;
 }
 
 export default function PostCard({ 
   post, 
-  currentUserRole, 
+  currentUserRole,
+  currentUserId,
   onApprove, 
   onReject, 
   onShare, 
-  onDelete 
+  onDelete,
+  onEdit
 }: PostCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
 
@@ -109,13 +116,19 @@ export default function PostCard({
       case 'delete':
         onDelete?.(post.id);
         break;
+      case 'edit':
+        onEdit?.(post.id);
+        break;
     }
   };
 
   const statusConfig = getStatusConfig(post.status);
   const StatusIcon = statusConfig.icon;
   const isAdmin = currentUserRole === 'admin';
+  const isOwnPost = currentUserId && post.authorId === currentUserId;
   const canTakeAction = isAdmin && post.status === 'pending';
+  const canEdit = (isAdmin || isOwnPost) && post.status === 'pending';
+  const canDelete = isOwnPost || isAdmin;
   const truncatedCaption = post.caption.length > 150 
     ? post.caption.substring(0, 150) + "..." 
     : post.caption;
@@ -174,14 +187,23 @@ export default function PostCard({
                   <Eye className="mr-2 h-4 w-4" />
                   View Details
                 </DropdownMenuItem>
-                {isAdmin && (
+                {canEdit && (
+                  <DropdownMenuItem 
+                    onClick={() => handleAction('edit')}
+                    data-testid={`menu-edit-${post.id}`}
+                  >
+                    <Edit3 className="mr-2 h-4 w-4" />
+                    Edit Post
+                  </DropdownMenuItem>
+                )}
+                {canDelete && (
                   <DropdownMenuItem 
                     onClick={() => handleAction('delete')}
                     className="text-destructive"
                     data-testid={`menu-delete-${post.id}`}
                   >
-                    <X className="mr-2 h-4 w-4" />
-                    Delete
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Delete Post
                   </DropdownMenuItem>
                 )}
               </DropdownMenuContent>

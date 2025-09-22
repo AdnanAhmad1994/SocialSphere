@@ -13,6 +13,7 @@ import Header from "@/components/Header";
 import PostSubmissionForm from "@/components/PostSubmissionForm";
 import AdminDashboard from "@/components/AdminDashboard";
 import PostCard from "@/components/PostCard";
+import EditPostForm from "@/components/EditPostForm";
 
 interface User {
   id: string;
@@ -33,6 +34,7 @@ interface Post {
   id: string;
   caption: string;
   images?: string[];
+  authorId: string;
   author: PostAuthor;
   status: 'pending' | 'approved' | 'rejected';
   submittedAt: string;
@@ -51,6 +53,7 @@ interface Stats {
 
 export default function Home() {
   const [currentView, setCurrentView] = useState<'dashboard' | 'submit' | 'admin'>('dashboard');
+  const [editingPost, setEditingPost] = useState<Post | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -224,6 +227,90 @@ export default function Home() {
     },
   });
 
+  // Edit post mutation
+  const editPostMutation = useMutation({
+    mutationFn: async ({ postId, caption, images }: { postId: string; caption: string; images?: File[] }) => {
+      const formData = new FormData();
+      formData.append('caption', caption);
+      
+      if (images && images.length > 0) {
+        images.forEach((file) => {
+          formData.append('images', file);
+        });
+      }
+
+      const response = await fetch(`/api/posts/${postId}`, {
+        method: 'PUT',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const error = await response.text();
+        throw new Error(`${response.status}: ${error}`);
+      }
+
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Post Updated",
+        description: "Your post has been updated successfully.",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/posts"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
+      setEditingPost(null);
+    },
+    onError: (error: Error) => {
+      if (isUnauthorizedError(error)) {
+        toast({
+          title: "Unauthorized",
+          description: "You are logged out. Logging in again...",
+          variant: "destructive",
+        });
+        setTimeout(() => {
+          window.location.href = "/api/login";
+        }, 500);
+        return;
+      }
+      toast({
+        title: "Error",
+        description: "Failed to update post. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Delete post mutation
+  const deletePostMutation = useMutation({
+    mutationFn: (postId: string) => apiRequest(`/api/posts/${postId}`, 'DELETE'),
+    onSuccess: () => {
+      toast({
+        title: "Post Deleted",
+        description: "Your post has been deleted successfully.",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/posts"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
+    },
+    onError: (error: Error) => {
+      if (isUnauthorizedError(error)) {
+        toast({
+          title: "Unauthorized",
+          description: "You are logged out. Logging in again...",
+          variant: "destructive",
+        });
+        setTimeout(() => {
+          window.location.href = "/api/login";
+        }, 500);
+        return;
+      }
+      toast({
+        title: "Error",
+        description: "Failed to delete post. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleLogout = () => {
     window.location.href = "/api/logout";
   };
@@ -241,6 +328,23 @@ export default function Home() {
         description: "The shareable link has been copied to your clipboard.",
       });
     }
+  };
+
+  const handleEditPost = (postId: string) => {
+    const post = posts.find(p => p.id === postId);
+    if (post) {
+      setEditingPost(post);
+    }
+  };
+
+  const handleDeletePost = (postId: string) => {
+    if (window.confirm("Are you sure you want to delete this post? This action cannot be undone.")) {
+      deletePostMutation.mutate(postId);
+    }
+  };
+
+  const handleEditPostSave = async (postId: string, caption: string, images?: File[]) => {
+    await editPostMutation.mutateAsync({ postId, caption, images });
   };
 
   if (userLoading) {
@@ -327,8 +431,11 @@ export default function Home() {
             <AdminDashboard 
               stats={stats}
               posts={posts}
+              currentUserId={user.id}
               onApprovePost={(postId) => approvePostMutation.mutate(postId)}
               onRejectPost={(postId) => rejectPostMutation.mutate(postId)}
+              onEditPost={handleEditPost}
+              onDeletePost={handleDeletePost}
               onBulkAction={(action, postIds) => {
                 if (action === 'approve') {
                   postIds.forEach(id => approvePostMutation.mutate(id));
@@ -456,9 +563,12 @@ export default function Home() {
                       key={post.id}
                       post={post}
                       currentUserRole={user.role}
+                      currentUserId={user.id}
                       onApprove={(id) => approvePostMutation.mutate(id)}
                       onReject={(id) => rejectPostMutation.mutate(id)}
                       onShare={handleSharePost}
+                      onEdit={handleEditPost}
+                      onDelete={handleDeletePost}
                     />
                   ))
                 ) : (
@@ -481,6 +591,14 @@ export default function Home() {
           </div>
         )}
       </main>
+
+      {/* Edit Post Form */}
+      <EditPostForm
+        post={editingPost || undefined}
+        isOpen={!!editingPost}
+        onClose={() => setEditingPost(null)}
+        onSave={handleEditPostSave}
+      />
     </div>
   );
 }

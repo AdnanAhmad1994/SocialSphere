@@ -64,4 +64,10 @@ export const insertPostSchema = createInsertSchema(posts).pick({
   caption: z.string().min(1, "Caption is required").max(500, "Caption too long"),
 });
 
+export const updatePostSchema = z.object({
+  caption: z.string().min(1, "Caption is required").max(500, "Caption too long").optional(),
+  images: z.array(z.string()).max(4, "Maximum 4 images allowed").optional(),
+});
+
 export type InsertPostData = z.infer<typeof insertPostSchema>;
+export type UpdatePostData = z.infer<typeof updatePostSchema>;

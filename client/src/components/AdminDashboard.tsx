@@ -29,8 +29,11 @@ interface DashboardStats {
 interface AdminDashboardProps {
   stats?: DashboardStats;
   posts?: any[];
+  currentUserId?: string;
   onApprovePost?: (id: string) => void;
   onRejectPost?: (id: string) => void;
+  onEditPost?: (id: string) => void;
+  onDeletePost?: (id: string) => void;
   onBulkAction?: (action: string, postIds: string[]) => void;
 }
 
@@ -43,8 +46,11 @@ export default function AdminDashboard({
     totalUsers: 156
   },
   posts = [],
+  currentUserId,
   onApprovePost,
   onRejectPost,
+  onEditPost,
+  onDeletePost,
   onBulkAction
 }: AdminDashboardProps) {
   const [searchQuery, setSearchQuery] = useState("");
@@ -271,10 +277,12 @@ export default function AdminDashboard({
               key={post.id}
               post={post}
               currentUserRole="admin"
+              currentUserId={currentUserId}
               onApprove={onApprovePost}
               onReject={onRejectPost}
+              onEdit={onEditPost}
+              onDelete={onDeletePost}
               onShare={(id) => console.log('Share post:', id)}
-              onDelete={(id) => console.log('Delete post:', id)}
             />
           ))
         ) : (

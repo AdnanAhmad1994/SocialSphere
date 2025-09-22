@@ -23,6 +23,7 @@ export interface IStorage {
   getPendingPosts(): Promise<Post[]>;
   updatePostStatus(postId: string, status: 'approved' | 'rejected', reviewerId: string): Promise<Post | undefined>;
   updatePostShareableLink(postId: string, link: string): Promise<Post | undefined>;
+  updatePost(postId: string, updates: { caption?: string; images?: string[] }): Promise<Post | undefined>;
   getPostById(postId: string): Promise<Post | undefined>;
   deletePost(postId: string): Promise<void>;
 }
@@ -100,6 +101,18 @@ export class DatabaseStorage implements IStorage {
       .update(posts)
       .set({
         shareableLink: link,
+        updatedAt: new Date(),
+      })
+      .where(eq(posts.id, postId))
+      .returning();
+    return post;
+  }
+
+  async updatePost(postId: string, updates: { caption?: string; images?: string[] }): Promise<Post | undefined> {
+    const [post] = await db
+      .update(posts)
+      .set({
+        ...updates,
         updatedAt: new Date(),
       })
       .where(eq(posts.id, postId))
@@ -205,6 +218,19 @@ export class MemStorage implements IStorage {
     const updatedPost: Post = {
       ...post,
       shareableLink: link,
+      updatedAt: new Date(),
+    };
+    this.posts.set(postId, updatedPost);
+    return updatedPost;
+  }
+
+  async updatePost(postId: string, updates: { caption?: string; images?: string[] }): Promise<Post | undefined> {
+    const post = this.posts.get(postId);
+    if (!post) return undefined;
+
+    const updatedPost: Post = {
+      ...post,
+      ...updates,
       updatedAt: new Date(),
     };
     this.posts.set(postId, updatedPost);

@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import multer from "multer";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./replitAuth";
-import { insertPostSchema, type InsertPostData } from "@shared/schema";
+import { insertPostSchema, updatePostSchema, type InsertPostData, type UpdatePostData } from "@shared/schema";
 import { z } from "zod";
 import { uploadToObjectStorage } from "./objectStorage";
 
@@ -216,15 +216,78 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Update post content (users can edit their own posts only when pending)
+  app.put('/api/posts/:id', isAuthenticated, upload.array('images', 4), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      const postId = req.params.id;
+      
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Get the existing post to check ownership and status
+      const existingPost = await storage.getPostById(postId);
+      if (!existingPost) {
+        return res.status(404).json({ message: "Post not found" });
+      }
+
+      // Users can only edit their own posts or admins can edit any
+      if (existingPost.authorId !== userId && user.role !== 'admin') {
+        return res.status(403).json({ message: "You can only edit your own posts" });
+      }
+
+      // Posts can only be edited when pending
+      if (existingPost.status !== 'pending') {
+        return res.status(400).json({ message: "Only pending posts can be edited" });
+      }
+
+      const { caption } = req.body;
+      const files = req.files as Express.Multer.File[];
+
+      // Validate with zod schema
+      const validation = updatePostSchema.safeParse({ caption });
+      if (!validation.success) {
+        return res.status(400).json({ 
+          message: "Validation failed", 
+          errors: validation.error.errors 
+        });
+      }
+
+      let images: string[] | undefined;
+      
+      // Handle new image uploads if provided
+      if (files && files.length > 0) {
+        const uploadPromises = files.map(file => uploadToObjectStorage(file, 'posts'));
+        images = await Promise.all(uploadPromises);
+      }
+
+      // Prepare updates
+      const updates: { caption?: string; images?: string[] } = {};
+      if (caption) updates.caption = caption.trim();
+      if (images) updates.images = images;
+
+      const updatedPost = await storage.updatePost(postId, updates);
+      if (!updatedPost) {
+        return res.status(404).json({ message: "Post not found" });
+      }
+
+      res.json(updatedPost);
+    } catch (error) {
+      console.error("Error updating post:", error);
+      res.status(500).json({ message: "Failed to update post" });
+    }
+  });
+
   app.delete('/api/posts/:id', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const user = await storage.getUser(userId);
       const postId = req.params.id;
       
-      // Strictly enforce admin role  
-      if (!user || user.role !== 'admin') {
-        return res.status(403).json({ message: "Admin access required" });
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
       }
 
       const post = await storage.getPostById(postId);
@@ -232,8 +295,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Post not found" });
       }
 
+      // Users can delete their own posts or admins can delete any post
+      if (post.authorId !== userId && user.role !== 'admin') {
+        return res.status(403).json({ message: "You can only delete your own posts" });
+      }
+
       await storage.deletePost(postId);
-      res.status(204).send();
+      res.json({ message: "Post deleted successfully" });
     } catch (error) {
       console.error("Error deleting post:", error);
       res.status(500).json({ message: "Failed to delete post" });
