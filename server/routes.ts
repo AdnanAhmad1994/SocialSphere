@@ -128,6 +128,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "User not found" });
       }
 
+      // Check if user's email is whitelisted (admin users are exempt)
+      if (user.role !== 'admin') {
+        const isWhitelisted = await storage.isEmailWhitelisted(user.email);
+        if (!isWhitelisted) {
+          return res.status(403).json({ 
+            message: "Your email is not authorized to submit posts. Please contact an administrator to be added to the whitelist." 
+          });
+        }
+      }
+
       // Validate request body
       const validatedData = insertPostSchema.parse({
         caption: req.body.caption,
