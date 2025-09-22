@@ -1,0 +1,201 @@
+import { useState, useRef } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Upload, X, Image as ImageIcon, FileText, Send } from "lucide-react";
+
+interface PostSubmissionFormProps {
+  onSubmit?: (post: { caption: string; images: File[]; type: string }) => void;
+}
+
+export default function PostSubmissionForm({ onSubmit }: PostSubmissionFormProps) {
+  const [caption, setCaption] = useState("");
+  const [images, setImages] = useState<File[]>([]);
+  const [isDragOver, setIsDragOver] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const maxCaptionLength = 500;
+  const maxImages = 4;
+
+  const handleFileSelect = (files: FileList | null) => {
+    if (!files) return;
+    
+    const newImages = Array.from(files).slice(0, maxImages - images.length);
+    setImages(prev => [...prev, ...newImages]);
+    console.log('Images selected:', newImages.map(f => f.name));
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
+    handleFileSelect(e.dataTransfer.files);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
+  };
+
+  const removeImage = (index: number) => {
+    setImages(prev => prev.filter((_, i) => i !== index));
+    console.log('Image removed at index:', index);
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const postData = {
+      caption: caption.trim(),
+      images,
+      type: images.length > 0 ? 'image_post' : 'text_post'
+    };
+    console.log('Post submitted:', postData);
+    onSubmit?.(postData);
+    
+    // Reset form
+    setCaption("");
+    setImages([]);
+  };
+
+  const getImagePreview = (file: File) => {
+    return URL.createObjectURL(file);
+  };
+
+  return (
+    <div className="max-w-2xl mx-auto p-4">
+      <Card className="shadow-lg">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <FileText className="h-5 w-5 text-primary" />
+            Submit New Post
+          </CardTitle>
+          <CardDescription>
+            Share your content with the Riphah School community. All posts require admin approval.
+          </CardDescription>
+        </CardHeader>
+        
+        <CardContent>
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Caption Input */}
+            <div className="space-y-2">
+              <Label htmlFor="caption">Caption / Message</Label>
+              <Textarea
+                id="caption"
+                placeholder="Write your caption here... What's happening at Riphah School?"
+                value={caption}
+                onChange={(e) => setCaption(e.target.value)}
+                rows={4}
+                maxLength={maxCaptionLength}
+                className="resize-none"
+                data-testid="textarea-caption"
+              />
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-muted-foreground">
+                  {caption.length}/{maxCaptionLength} characters
+                </span>
+                <Badge variant={caption.length > maxCaptionLength * 0.9 ? "destructive" : "secondary"}>
+                  {caption.length > maxCaptionLength * 0.9 ? "Almost full" : "Good"}
+                </Badge>
+              </div>
+            </div>
+
+            {/* Image Upload Area */}
+            <div className="space-y-4">
+              <Label>Images (Optional)</Label>
+              
+              {/* Drag and Drop Area */}
+              <div
+                className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors hover-elevate cursor-pointer ${
+                  isDragOver 
+                    ? 'border-primary bg-primary/5' 
+                    : 'border-border bg-muted/30'
+                }`}
+                onDrop={handleDrop}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onClick={() => fileInputRef.current?.click()}
+                data-testid="dropzone-images"
+              >
+                <Upload className={`mx-auto h-8 w-8 mb-2 ${isDragOver ? 'text-primary' : 'text-muted-foreground'}`} />
+                <p className="text-sm font-medium">
+                  Drop images here or click to browse
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  PNG, JPG up to 10MB each (max {maxImages} images)
+                </p>
+              </div>
+
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => handleFileSelect(e.target.files)}
+                data-testid="input-file-hidden"
+              />
+
+              {/* Image Previews */}
+              {images.length > 0 && (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  {images.map((file, index) => (
+                    <div key={index} className="relative group">
+                      <div className="aspect-square rounded-lg overflow-hidden bg-muted">
+                        <img
+                          src={getImagePreview(file)}
+                          alt={`Preview ${index + 1}`}
+                          className="w-full h-full object-cover"
+                          data-testid={`img-preview-${index}`}
+                        />
+                      </div>
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        size="icon"
+                        className="absolute -top-2 -right-2 h-6 w-6 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                        onClick={() => removeImage(index)}
+                        data-testid={`button-remove-image-${index}`}
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                      <p className="text-xs text-muted-foreground mt-1 truncate">
+                        {file.name}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {images.length >= maxImages && (
+                <Badge variant="secondary" className="w-fit">
+                  <ImageIcon className="mr-1 h-3 w-3" />
+                  Maximum {maxImages} images reached
+                </Badge>
+              )}
+            </div>
+
+            {/* Submit Button */}
+            <div className="flex justify-end pt-4 border-t">
+              <Button 
+                type="submit" 
+                disabled={!caption.trim()}
+                className="min-w-32"
+                data-testid="button-submit-post"
+              >
+                <Send className="mr-2 h-4 w-4" />
+                Submit for Review
+              </Button>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
