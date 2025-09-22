@@ -20,6 +20,7 @@ import {
   Eye,
   MessageSquare
 } from "lucide-react";
+import SocialMediaPreview from "./SocialMediaPreview";
 
 type PostStatus = 'pending' | 'approved' | 'rejected';
 type UserRole = 'student' | 'faculty' | 'admin';
@@ -268,22 +269,38 @@ export default function PostCard({
           </div>
         )}
 
-        {/* Shareable Link Preview */}
-        {post.status === 'approved' && post.shareableLink && (
-          <div className="bg-muted/50 p-3 rounded-md">
-            <p className="text-xs text-muted-foreground mb-1">Shareable Link:</p>
-            <div className="flex items-center gap-2">
-              <code className="text-xs bg-background p-1 rounded flex-1 truncate">
-                {post.shareableLink}
-              </code>
+        {/* Post Actions */}
+        <div className="flex items-center justify-between pt-2 border-t">
+          <div className="flex items-center gap-2">
+            <SocialMediaPreview post={post} />
+            {post.status === 'approved' && post.shareableLink && (
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => handleAction('share')}
                 data-testid={`button-copy-link-${post.id}`}
+                className="flex items-center gap-1"
               >
                 <Share2 className="h-3 w-3" />
+                Copy Link
               </Button>
+            )}
+          </div>
+          
+          {post.status === 'approved' && post.shareableLink && (
+            <div className="text-xs text-muted-foreground">
+              <span className="hidden md:inline">Ready to share</span>
+            </div>
+          )}
+        </div>
+
+        {/* Shareable Link Preview */}
+        {post.status === 'approved' && post.shareableLink && (
+          <div className="bg-muted/50 p-2 rounded-md">
+            <div className="flex items-center gap-2">
+              <code className="text-xs bg-background p-1 rounded flex-1 truncate">
+                {post.shareableLink}
+              </code>
             </div>
           </div>
         )}

@@ -5,7 +5,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Upload, X, Image as ImageIcon, FileText, Send } from "lucide-react";
+import { Upload, X, Image as ImageIcon, FileText, Send, Eye } from "lucide-react";
+import SocialMediaPreview from "./SocialMediaPreview";
 
 interface PostSubmissionFormProps {
   onSubmit?: (post: { caption: string; images: File[]; type: string }) => void;
@@ -181,8 +182,29 @@ export default function PostSubmissionForm({ onSubmit }: PostSubmissionFormProps
               )}
             </div>
 
-            {/* Submit Button */}
-            <div className="flex justify-end pt-4 border-t">
+            {/* Preview and Submit */}
+            <div className="flex items-center justify-between pt-4 border-t">
+              <div className="flex items-center gap-2">
+                {(images.length > 0 || caption.trim()) && (
+                  <SocialMediaPreview 
+                    post={{
+                      id: 'preview',
+                      caption: caption || 'Your caption will appear here...',
+                      images: images.map(file => URL.createObjectURL(file)),
+                      author: {
+                        name: 'Your Name',
+                        role: 'student',
+                        avatar: undefined
+                      },
+                      shareableLink: 'https://your-domain.com/posts/preview'
+                    }}
+                  />
+                )}
+                <div className="text-sm text-muted-foreground">
+                  <p>Your post will be reviewed by admins before publishing</p>
+                </div>
+              </div>
+              
               <Button 
                 type="submit" 
                 disabled={!caption.trim()}

@@ -171,6 +171,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const user = await storage.getUser(userId);
       const postId = req.params.id;
       
+      // Strictly enforce admin role
       if (!user || user.role !== 'admin') {
         return res.status(403).json({ message: "Admin access required" });
       }
@@ -198,6 +199,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const user = await storage.getUser(userId);
       const postId = req.params.id;
       
+      // Strictly enforce admin role
       if (!user || user.role !== 'admin') {
         return res.status(403).json({ message: "Admin access required" });
       }
@@ -220,6 +222,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const user = await storage.getUser(userId);
       const postId = req.params.id;
       
+      // Strictly enforce admin role  
       if (!user || user.role !== 'admin') {
         return res.status(403).json({ message: "Admin access required" });
       }
@@ -313,48 +316,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Serve public images from object storage
-  app.get('/public/:folder/:filename', (req, res) => {
-    try {
-      const { folder, filename } = req.params;
-      
-      // Parse the PUBLIC_OBJECT_SEARCH_PATHS correctly
-      let publicBasePath = '/tmp';
-      if (process.env.PUBLIC_OBJECT_SEARCH_PATHS) {
-        try {
-          const paths = JSON.parse(process.env.PUBLIC_OBJECT_SEARCH_PATHS);
-          if (Array.isArray(paths) && paths.length > 0) {
-            publicBasePath = paths[0];
-          }
-        } catch (e) {
-          // If parsing fails, use the value as is
-          publicBasePath = process.env.PUBLIC_OBJECT_SEARCH_PATHS;
-        }
+  // Serve public images from object storage using express.static for security
+  const express = require('express');
+  app.use('/public', express.static('/tmp/uploads', {
+    maxAge: '1y',
+    immutable: true,
+    setHeaders: (res: any, path: string) => {
+      res.set('X-Content-Type-Options', 'nosniff');
+      // Force image content types for security
+      const ext = path.split('.').pop()?.toLowerCase();
+      if (ext === 'jpg' || ext === 'jpeg') {
+        res.set('Content-Type', 'image/jpeg');
+      } else if (ext === 'png') {
+        res.set('Content-Type', 'image/png');
+      } else if (ext === 'gif') {
+        res.set('Content-Type', 'image/gif');
+      } else if (ext === 'webp') {
+        res.set('Content-Type', 'image/webp');
       }
-      
-      const path = require('path');
-      const publicPath = path.join(publicBasePath, folder, filename);
-      
-      // Add cache headers for public assets
-      res.set({
-        'Cache-Control': 'public, max-age=31536000, immutable', // 1 year cache
-        'Content-Type': filename.endsWith('.jpg') || filename.endsWith('.jpeg') ? 'image/jpeg' :
-                       filename.endsWith('.png') ? 'image/png' :
-                       filename.endsWith('.gif') ? 'image/gif' :
-                       filename.endsWith('.webp') ? 'image/webp' : 'application/octet-stream'
-      });
-      
-      res.sendFile(path.resolve(publicPath), (err) => {
-        if (err) {
-          console.error('Error serving file:', err);
-          res.status(404).send('File not found');
-        }
-      });
-    } catch (error) {
-      console.error('Error serving public file:', error);
-      res.status(500).send('Error serving file');
     }
-  });
+  }));
 
   // Dashboard stats
   app.get('/api/stats', isAuthenticated, async (req: any, res) => {

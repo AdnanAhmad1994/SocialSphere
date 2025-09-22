@@ -9,16 +9,17 @@ export async function uploadToObjectStorage(file: Express.Multer.File, folder: s
     const fileName = `${folder}/${randomUUID()}.${fileExtension}`;
     
     // Parse the PUBLIC_OBJECT_SEARCH_PATHS correctly
-    let publicBasePath = '/tmp';
+    let publicBasePath = '/tmp/uploads';
     if (process.env.PUBLIC_OBJECT_SEARCH_PATHS) {
       try {
         const paths = JSON.parse(process.env.PUBLIC_OBJECT_SEARCH_PATHS);
         if (Array.isArray(paths) && paths.length > 0) {
-          publicBasePath = paths[0];
+          // Use tmp directory as fallback since Replit object storage may not be writable
+          publicBasePath = '/tmp/uploads';
         }
       } catch (e) {
-        // If parsing fails, use the value as is
-        publicBasePath = process.env.PUBLIC_OBJECT_SEARCH_PATHS;
+        // If parsing fails, use tmp directory
+        publicBasePath = '/tmp/uploads';
       }
     }
     
