@@ -282,7 +282,7 @@ export default function Home() {
 
   // Delete post mutation
   const deletePostMutation = useMutation({
-    mutationFn: (postId: string) => apiRequest(`/api/posts/${postId}`, 'DELETE'),
+    mutationFn: (postId: string) => apiRequest('DELETE', `/api/posts/${postId}`),
     onSuccess: () => {
       toast({
         title: "Post Deleted",
