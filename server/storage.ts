@@ -46,16 +46,40 @@ export class DatabaseStorage implements IStorage {
   }
 
   async upsertUser(userData: UpsertUser): Promise<User> {
-    // Migrate legacy roles to new role system
-    const migrateRole = (role?: string): 'admin' | 'contributor' => {
-      if (role === 'admin') return 'admin';
-      // Map legacy roles: student -> contributor, faculty -> contributor
+    // Determine user role based on provided role or email/name patterns
+    const determineRole = (userData: UpsertUser): 'admin' | 'contributor' => {
+      // If role is explicitly provided, handle legacy migration
+      if (userData.role) {
+        const role = userData.role as string; // Allow checking for legacy roles
+        if (role === 'admin') return 'admin';
+        // Map legacy roles: student -> contributor, faculty -> contributor
+        if (role === 'student' || role === 'faculty') return 'contributor';
+        // If role is already admin/contributor, keep it
+        if (role === 'contributor') return 'contributor';
+      }
+      
+      // For new users without explicit role, determine based on patterns
+      const email = userData.email?.toLowerCase() || '';
+      const firstName = userData.firstName?.toLowerCase() || '';
+      const lastName = userData.lastName?.toLowerCase() || '';
+      
+      // Check for admin indicators in email or name
+      if (email.includes('admin') || 
+          firstName.includes('admin') || 
+          lastName.includes('admin') ||
+          email.includes('@riphah.edu.pk') // example admin domain
+      ) {
+        return 'admin';
+      }
+      
+      // Default to contributor for all other cases
       return 'contributor';
     };
 
+    const userRole = determineRole(userData);
     const normalizedUserData = {
       ...userData,
-      role: migrateRole(userData.role),
+      role: userRole,
     };
 
     const [user] = await db
@@ -68,7 +92,7 @@ export class DatabaseStorage implements IStorage {
           firstName: normalizedUserData.firstName,
           lastName: normalizedUserData.lastName,
           profileImageUrl: normalizedUserData.profileImageUrl,
-          role: migrateRole(userData.role),
+          role: userRole,
           updatedAt: new Date(),
         },
       })
