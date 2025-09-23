@@ -21,12 +21,12 @@ interface User {
   firstName?: string;
   lastName?: string;
   profileImageUrl?: string;
-  role: 'student' | 'faculty' | 'admin';
+  role: 'admin' | 'contributor';
 }
 
 interface PostAuthor {
   name: string;
-  role: 'student' | 'faculty' | 'admin';
+  role: 'admin' | 'contributor';
   avatar?: string;
 }
 
@@ -471,7 +471,6 @@ export default function Home() {
               </div>
               <Badge className={`text-sm px-3 py-1 ${
                 user.role === 'admin' ? 'bg-destructive text-destructive-foreground' :
-                user.role === 'faculty' ? 'bg-chart-2 text-white' :
                 'bg-chart-1 text-white'
               }`}>
                 {user.role.charAt(0).toUpperCase() + user.role.slice(1)}

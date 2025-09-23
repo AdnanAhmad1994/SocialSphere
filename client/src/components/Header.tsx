@@ -15,7 +15,7 @@ import logoUrl from "@assets/RSCILogo_1758526996897.png";
 interface HeaderProps {
   user?: {
     name: string;
-    role: 'student' | 'faculty' | 'admin';
+    role: 'admin' | 'contributor';
     avatar?: string;
   };
   pendingCount?: number;
@@ -37,8 +37,7 @@ export default function Header({ user, pendingCount = 0, onAuth, onLogout }: Hea
   const getRoleColor = (role: string) => {
     switch (role) {
       case 'admin': return 'bg-destructive text-destructive-foreground';
-      case 'faculty': return 'bg-chart-2 text-white';
-      case 'student': return 'bg-chart-1 text-white';
+      case 'contributor': return 'bg-chart-1 text-white';
       default: return 'bg-secondary text-secondary-foreground';
     }
   };

@@ -25,7 +25,7 @@ import {
 import SocialMediaPreview from "./SocialMediaPreview";
 
 type PostStatus = 'pending' | 'approved' | 'rejected';
-type UserRole = 'student' | 'faculty' | 'admin';
+type UserRole = 'admin' | 'contributor';
 
 interface Post {
   id: string;
@@ -96,8 +96,7 @@ export default function PostCard({
   const getRoleColor = (role: UserRole) => {
     switch (role) {
       case 'admin': return 'bg-destructive text-destructive-foreground';
-      case 'faculty': return 'bg-chart-2 text-white';
-      case 'student': return 'bg-chart-1 text-white';
+      case 'contributor': return 'bg-chart-1 text-white';
     }
   };
 

@@ -46,13 +46,29 @@ export class DatabaseStorage implements IStorage {
   }
 
   async upsertUser(userData: UpsertUser): Promise<User> {
+    // Migrate legacy roles to new role system
+    const migrateRole = (role?: string): 'admin' | 'contributor' => {
+      if (role === 'admin') return 'admin';
+      // Map legacy roles: student -> contributor, faculty -> contributor
+      return 'contributor';
+    };
+
+    const normalizedUserData = {
+      ...userData,
+      role: migrateRole(userData.role),
+    };
+
     const [user] = await db
       .insert(users)
-      .values(userData)
+      .values(normalizedUserData)
       .onConflictDoUpdate({
         target: users.id,
         set: {
-          ...userData,
+          email: normalizedUserData.email,
+          firstName: normalizedUserData.firstName,
+          lastName: normalizedUserData.lastName,
+          profileImageUrl: normalizedUserData.profileImageUrl,
+          role: migrateRole(userData.role),
           updatedAt: new Date(),
         },
       })
@@ -209,7 +225,7 @@ export class MemStorage implements IStorage {
       firstName: userData.firstName || null,
       lastName: userData.lastName || null,
       profileImageUrl: userData.profileImageUrl || null,
-      role: userData.role || 'student',
+      role: userData.role || 'contributor',
       createdAt: existing?.createdAt || new Date(),
       updatedAt: new Date(),
     };

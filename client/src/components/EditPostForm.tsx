@@ -7,7 +7,7 @@ import { X, Upload, Image as ImageIcon } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 type PostStatus = 'pending' | 'approved' | 'rejected';
-type UserRole = 'student' | 'faculty' | 'admin';
+type UserRole = 'admin' | 'contributor';
 
 interface Post {
   id: string;

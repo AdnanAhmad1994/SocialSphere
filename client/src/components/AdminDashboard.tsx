@@ -338,9 +338,8 @@ export default function AdminDashboard({
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Roles</SelectItem>
-                  <SelectItem value="student">Student</SelectItem>
-                  <SelectItem value="faculty">Faculty</SelectItem>
                   <SelectItem value="admin">Admin</SelectItem>
+                  <SelectItem value="contributor">Contributor</SelectItem>
                 </SelectContent>
               </Select>
             </div>
