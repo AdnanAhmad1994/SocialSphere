@@ -10,6 +10,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Link } from "wouter";
 import logoUrl from "@assets/RSCILogo_1758526996897.png";
 
 interface HeaderProps {
@@ -46,7 +47,7 @@ export default function Header({ user, pendingCount = 0, onAuth, onLogout }: Hea
     <header className="sticky top-0 z-50 bg-background/95 backdrop-blur border-b border-border shadow-sm">
       <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
         {/* Logo and Title */}
-        <div className="flex items-center gap-3">
+        <Link href="/" className="flex items-center gap-3 hover-elevate cursor-pointer" data-testid="link-logo">
           <img 
             src={logoUrl} 
             alt="Riphah School Logo" 
@@ -57,7 +58,7 @@ export default function Header({ user, pendingCount = 0, onAuth, onLogout }: Hea
             <h1 className="text-lg font-semibold text-foreground">Social Media Portal</h1>
             <p className="text-sm text-muted-foreground">Riphah School of Computing & Innovation</p>
           </div>
-        </div>
+        </Link>
 
         {/* User Actions */}
         <div className="flex items-center gap-4">
