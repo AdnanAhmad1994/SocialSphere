@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Users, FileText, CheckCircle, Share2, ArrowRight } from "lucide-react";
+import { Link } from "wouter";
 import logoUrl from "@assets/RSCILogo_1758526996897.png";
 import ThemeToggle from "@/components/ThemeToggle";
 
@@ -16,7 +17,7 @@ export default function Landing() {
       {/* Header */}
       <header className="sticky top-0 z-50 bg-background/95 backdrop-blur border-b border-border">
         <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-3">
+          <Link href="/" className="flex items-center gap-3 hover-elevate cursor-pointer" data-testid="link-landing-logo">
             <img 
               src={logoUrl} 
               alt="Riphah School Logo" 
@@ -27,7 +28,7 @@ export default function Landing() {
               <h1 className="text-lg font-semibold text-foreground">Social Media Portal</h1>
               <p className="text-sm text-muted-foreground">Riphah School of Computing & Innovation</p>
             </div>
-          </div>
+          </Link>
           <div className="flex items-center gap-4">
             <ThemeToggle />
             <Button onClick={handleLogin} data-testid="button-landing-login">
