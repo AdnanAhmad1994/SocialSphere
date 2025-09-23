@@ -179,7 +179,7 @@ export default function Home() {
 
   // Post approval mutations
   const approvePostMutation = useMutation({
-    mutationFn: (postId: string) => apiRequest(`/api/posts/${postId}/approve`, 'PUT'),
+    mutationFn: (postId: string) => apiRequest('PUT', `/api/posts/${postId}/approve`),
     onSuccess: () => {
       toast({
         title: "Post Approved",
@@ -209,7 +209,7 @@ export default function Home() {
   });
 
   const rejectPostMutation = useMutation({
-    mutationFn: (postId: string) => apiRequest(`/api/posts/${postId}/reject`, 'PUT'),
+    mutationFn: (postId: string) => apiRequest('PUT', `/api/posts/${postId}/reject`),
     onSuccess: () => {
       toast({
         title: "Post Rejected",
