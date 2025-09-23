@@ -120,6 +120,112 @@ export default function Landing() {
           </div>
         </section>
 
+        {/* User Roles Section */}
+        <section className="py-16 px-4 bg-muted/30">
+          <div className="max-w-6xl mx-auto">
+            <div className="text-center mb-12">
+              <h2 className="text-3xl font-bold text-foreground mb-4">
+                Choose Your Role
+              </h2>
+              <p className="text-muted-foreground max-w-2xl mx-auto">
+                Your access level depends on your account type. Join as a contributor or administrator 
+                to access different features tailored to your needs.
+              </p>
+            </div>
+
+            <div className="grid md:grid-cols-2 gap-8">
+              {/* Contributor Card */}
+              <Card className="text-center hover-elevate border-l-4 border-l-chart-1">
+                <CardHeader>
+                  <div className="mx-auto w-16 h-16 bg-chart-1/10 rounded-lg flex items-center justify-center mb-4">
+                    <Users className="h-8 w-8 text-chart-1" />
+                  </div>
+                  <CardTitle className="text-chart-1">Contributor Access</CardTitle>
+                  <CardDescription>
+                    Perfect for students and faculty members who want to share their achievements
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <CheckCircle className="h-4 w-4 text-chart-1 flex-shrink-0" />
+                      Submit posts with images and captions
+                    </div>
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <CheckCircle className="h-4 w-4 text-chart-1 flex-shrink-0" />
+                      Edit and delete your own posts
+                    </div>
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <CheckCircle className="h-4 w-4 text-chart-1 flex-shrink-0" />
+                      Track approval status
+                    </div>
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <CheckCircle className="h-4 w-4 text-chart-1 flex-shrink-0" />
+                      Get shareable links for approved content
+                    </div>
+                  </div>
+                  <Button 
+                    onClick={handleLogin} 
+                    className="w-full bg-chart-1 hover:bg-chart-1/90 text-white"
+                    data-testid="button-login-contributor"
+                  >
+                    Join as Contributor
+                  </Button>
+                </CardContent>
+              </Card>
+
+              {/* Admin Card */}
+              <Card className="text-center hover-elevate border-l-4 border-l-destructive">
+                <CardHeader>
+                  <div className="mx-auto w-16 h-16 bg-destructive/10 rounded-lg flex items-center justify-center mb-4">
+                    <CheckCircle className="h-8 w-8 text-destructive" />
+                  </div>
+                  <CardTitle className="text-destructive">Administrator Access</CardTitle>
+                  <CardDescription>
+                    Full control for managing content and moderating the community
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <CheckCircle className="h-4 w-4 text-destructive flex-shrink-0" />
+                      All contributor features included
+                    </div>
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <CheckCircle className="h-4 w-4 text-destructive flex-shrink-0" />
+                      Review and approve/reject posts
+                    </div>
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <CheckCircle className="h-4 w-4 text-destructive flex-shrink-0" />
+                      Manage email whitelist
+                    </div>
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <CheckCircle className="h-4 w-4 text-destructive flex-shrink-0" />
+                      View community statistics
+                    </div>
+                  </div>
+                  <Button 
+                    onClick={handleLogin} 
+                    className="w-full bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+                    data-testid="button-login-admin"
+                  >
+                    Join as Administrator
+                  </Button>
+                </CardContent>
+              </Card>
+            </div>
+
+            <div className="text-center mt-8">
+              <p className="text-sm text-muted-foreground mb-4">
+                Your role is automatically assigned based on your account permissions
+              </p>
+              <Badge className="bg-primary/10 text-primary">
+                Secure authentication powered by Replit
+              </Badge>
+            </div>
+          </div>
+        </section>
+
         {/* Community Section */}
         <section className="py-16 px-4">
           <div className="max-w-6xl mx-auto">
