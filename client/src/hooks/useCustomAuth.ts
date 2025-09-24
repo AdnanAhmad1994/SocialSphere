@@ -34,8 +34,11 @@ export function useCustomAuth() {
       // Clear all cached data
       queryClient.clear();
       
-      // Force refresh of auth status
-      queryClient.invalidateQueries({ queryKey: ['/api/auth/status'] });
+      // Force immediate refresh of auth status by removing stale data
+      queryClient.removeQueries({ queryKey: ['/api/auth/status'] });
+      
+      // Force refetch with fresh data
+      await queryClient.refetchQueries({ queryKey: ['/api/auth/status'] });
       
     } catch (error) {
       console.error('Logout error:', error);
