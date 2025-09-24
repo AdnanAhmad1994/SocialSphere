@@ -86,9 +86,8 @@ export class DatabaseStorage implements IStorage {
       .insert(users)
       .values(normalizedUserData)
       .onConflictDoUpdate({
-        target: users.id,
+        target: users.email,
         set: {
-          email: normalizedUserData.email,
           firstName: normalizedUserData.firstName,
           lastName: normalizedUserData.lastName,
           profileImageUrl: normalizedUserData.profileImageUrl,
