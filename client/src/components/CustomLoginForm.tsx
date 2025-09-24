@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -17,6 +18,7 @@ interface CustomLoginFormProps {
 }
 
 export default function CustomLoginForm({ onLoginSuccess }: CustomLoginFormProps) {
+  const [, setLocation] = useLocation();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("admin");
@@ -53,6 +55,8 @@ export default function CustomLoginForm({ onLoginSuccess }: CustomLoginFormProps
 
       if (response.ok) {
         onLoginSuccess();
+        // Redirect to dashboard after successful login
+        setLocation('/');
       } else {
         setError(result.message || 'Login failed');
       }
@@ -81,6 +85,8 @@ export default function CustomLoginForm({ onLoginSuccess }: CustomLoginFormProps
 
       if (response.ok) {
         onLoginSuccess();
+        // Redirect to dashboard after successful login
+        setLocation('/');
       } else {
         setError(result.message || 'Login failed');
       }

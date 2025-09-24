@@ -2,7 +2,7 @@ import express, { type Express } from "express";
 import { createServer, type Server } from "http";
 import multer from "multer";
 import { storage } from "./storage";
-import { setupAuth, isAuthenticated } from "./replitAuth";
+import { setupAuth, isAuthenticated, getSession } from "./replitAuth";
 import { customAuthRouter, isCustomAuthenticated } from "./customAuth";
 import { insertPostSchema, updatePostSchema, insertWhitelistedEmailSchema, type InsertPostData, type UpdatePostData, type InsertWhitelistedEmailData } from "@shared/schema";
 import { z } from "zod";
@@ -22,16 +22,17 @@ const upload = multer({
 });
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Auth middleware
-  await setupAuth(app);
+  // Setup session middleware for custom authentication
+  app.set("trust proxy", 1);
+  app.use(getSession());
   
   // Custom authentication routes
   app.use(customAuthRouter);
 
   // Auth routes
-  app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
+  app.get('/api/auth/user', isCustomAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.session.userId;
       const user = await storage.getUser(userId);
       if (!user) {
         return res.status(404).json({ message: "User not found" });
@@ -44,9 +45,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Post routes
-  app.get('/api/posts', isAuthenticated, async (req: any, res) => {
+  app.get('/api/posts', isCustomAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.session.userId;
       const user = await storage.getUser(userId);
       
       if (!user) {
@@ -86,9 +87,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/posts/pending', isAuthenticated, async (req: any, res) => {
+  app.get('/api/posts/pending', isCustomAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.session.userId;
       const user = await storage.getUser(userId);
       
       if (!user || user.role !== 'admin') {
@@ -123,9 +124,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/posts', isAuthenticated, upload.array('images', 4), async (req: any, res) => {
+  app.post('/api/posts', isCustomAuthenticated, upload.array('images', 4), async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.session.userId;
       const user = await storage.getUser(userId);
       
       if (!user) {
@@ -185,9 +186,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put('/api/posts/:id/approve', isAuthenticated, async (req: any, res) => {
+  app.put('/api/posts/:id/approve', isCustomAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.session.userId;
       const user = await storage.getUser(userId);
       const postId = req.params.id;
       
@@ -213,9 +214,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put('/api/posts/:id/reject', isAuthenticated, async (req: any, res) => {
+  app.put('/api/posts/:id/reject', isCustomAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.session.userId;
       const user = await storage.getUser(userId);
       const postId = req.params.id;
       
@@ -237,9 +238,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Update post content (users can edit their own posts only when pending)
-  app.put('/api/posts/:id', isAuthenticated, upload.array('images', 4), async (req: any, res) => {
+  app.put('/api/posts/:id', isCustomAuthenticated, upload.array('images', 4), async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.session.userId;
       const user = await storage.getUser(userId);
       const postId = req.params.id;
       
@@ -300,9 +301,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete('/api/posts/:id', isAuthenticated, async (req: any, res) => {
+  app.delete('/api/posts/:id', isCustomAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.session.userId;
       const user = await storage.getUser(userId);
       const postId = req.params.id;
       
@@ -425,9 +426,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   }));
 
   // Dashboard stats
-  app.get('/api/stats', isAuthenticated, async (req: any, res) => {
+  app.get('/api/stats', isCustomAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.session.userId;
       const user = await storage.getUser(userId);
       
       if (!user) {
@@ -463,9 +464,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Admin whitelist management routes
-  app.get('/api/admin/whitelist', isAuthenticated, async (req: any, res) => {
+  app.get('/api/admin/whitelist', isCustomAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.session.userId;
       const user = await storage.getUser(userId);
       
       if (!user || user.role !== 'admin') {
@@ -498,10 +499,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/admin/whitelist', isAuthenticated, async (req: any, res) => {
+  app.post('/api/admin/whitelist', isCustomAuthenticated, async (req: any, res) => {
     try {
       console.log('POST /api/admin/whitelist - Request body:', req.body);
-      const userId = req.user.claims.sub;
+      const userId = req.session.userId;
       const user = await storage.getUser(userId);
       
       if (!user || user.role !== 'admin') {
@@ -534,9 +535,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete('/api/admin/whitelist/:id', isAuthenticated, async (req: any, res) => {
+  app.delete('/api/admin/whitelist/:id', isCustomAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.session.userId;
       const user = await storage.getUser(userId);
       
       if (!user || user.role !== 'admin') {
@@ -552,9 +553,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/admin/whitelist/bulk', isAuthenticated, async (req: any, res) => {
+  app.post('/api/admin/whitelist/bulk', isCustomAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.session.userId;
       const user = await storage.getUser(userId);
       
       if (!user || user.role !== 'admin') {
