@@ -230,6 +230,75 @@ export class DatabaseStorage implements IStorage {
       .onConflictDoNothing()
       .returning();
   }
+
+  // Custom authentication methods
+  async authenticateAdmin(email: string, password: string): Promise<User | null> {
+    const [user] = await db
+      .select()
+      .from(users)
+      .where(eq(users.email, email.toLowerCase()));
+    
+    if (!user || user.role !== 'admin' || !user.password) {
+      return null;
+    }
+    
+    const isValidPassword = await bcrypt.compare(password, user.password);
+    return isValidPassword ? user : null;
+  }
+
+  async authenticateWhitelistedUser(email: string): Promise<User | null> {
+    const normalizedEmail = email.toLowerCase();
+    
+    // Check if email is whitelisted
+    const isWhitelisted = await this.isEmailWhitelisted(normalizedEmail);
+    if (!isWhitelisted) {
+      return null;
+    }
+    
+    // Try to find existing user
+    const [existingUser] = await db
+      .select()
+      .from(users)
+      .where(eq(users.email, normalizedEmail));
+    
+    if (existingUser) {
+      return existingUser;
+    }
+    
+    // Create new contributor user if doesn't exist
+    const [newUser] = await db
+      .insert(users)
+      .values({
+        email: normalizedEmail,
+        firstName: normalizedEmail.split('@')[0], // Use email prefix as name
+        lastName: '',
+        role: 'contributor',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .returning();
+    
+    return newUser;
+  }
+
+  async createAdminUser(email: string, password: string, firstName: string, lastName: string): Promise<User> {
+    const hashedPassword = await bcrypt.hash(password, 12);
+    
+    const [user] = await db
+      .insert(users)
+      .values({
+        email: email.toLowerCase(),
+        password: hashedPassword,
+        firstName,
+        lastName,
+        role: 'admin',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .returning();
+    
+    return user;
+  }
 }
 
 // In-memory storage for development/testing
@@ -256,6 +325,7 @@ export class MemStorage implements IStorage {
       firstName: userData.firstName || null,
       lastName: userData.lastName || null,
       profileImageUrl: userData.profileImageUrl || null,
+      password: userData.password || null,
       role: userData.role || 'contributor',
       createdAt: existing?.createdAt || new Date(),
       updatedAt: new Date(),
@@ -399,12 +469,12 @@ export class MemStorage implements IStorage {
 
   // Custom authentication methods
   async authenticateAdmin(email: string, password: string): Promise<User | null> {
-    const [user] = await db
-      .select()
-      .from(users)
-      .where(eq(users.email, email.toLowerCase()));
+    const normalizedEmail = email.toLowerCase();
+    const user = Array.from(this.users.values()).find(
+      u => u.email === normalizedEmail && u.role === 'admin'
+    );
     
-    if (!user || user.role !== 'admin' || !user.password) {
+    if (!user || !user.password) {
       return null;
     }
     
@@ -422,52 +492,50 @@ export class MemStorage implements IStorage {
     }
     
     // Try to find existing user
-    const [existingUser] = await db
-      .select()
-      .from(users)
-      .where(eq(users.email, normalizedEmail));
+    const existingUser = Array.from(this.users.values()).find(
+      u => u.email === normalizedEmail
+    );
     
     if (existingUser) {
       return existingUser;
     }
     
     // Create new contributor user if doesn't exist
-    const [newUser] = await db
-      .insert(users)
-      .values({
-        email: normalizedEmail,
-        firstName: normalizedEmail.split('@')[0], // Use email prefix as name
-        lastName: '',
-        role: 'contributor',
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      })
-      .returning();
+    const newUser: User = {
+      id: randomUUID(),
+      email: normalizedEmail,
+      firstName: normalizedEmail.split('@')[0], // Use email prefix as name
+      lastName: '',
+      profileImageUrl: null,
+      password: null,
+      role: 'contributor',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
     
+    this.users.set(newUser.id, newUser);
     return newUser;
   }
 
   async createAdminUser(email: string, password: string, firstName: string, lastName: string): Promise<User> {
     const hashedPassword = await bcrypt.hash(password, 12);
     
-    const [user] = await db
-      .insert(users)
-      .values({
-        email: email.toLowerCase(),
-        password: hashedPassword,
-        firstName,
-        lastName,
-        role: 'admin',
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      })
-      .returning();
+    const user: User = {
+      id: randomUUID(),
+      email: email.toLowerCase(),
+      password: hashedPassword,
+      firstName,
+      lastName,
+      profileImageUrl: null,
+      role: 'admin',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
     
+    this.users.set(user.id, user);
     return user;
   }
 }
 
 // Use database storage in production, memory storage for development
-export const storage = process.env.NODE_ENV === 'production' 
-  ? new DatabaseStorage() 
-  : new DatabaseStorage(); // Use database even in development
+export const storage = new DatabaseStorage();

@@ -9,7 +9,7 @@ import ThemeToggle from "@/components/ThemeToggle";
 export default function Landing() {
   const handleLogin = () => {
     console.log('Redirecting to login...');
-    window.location.href = "/api/login";
+    window.location.href = "/login";
   };
 
   return (
@@ -61,7 +61,7 @@ export default function Landing() {
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
               <p className="text-sm text-muted-foreground">
-                Easy sign-up with Google, GitHub, or email
+                Access for administrators and whitelisted contributors
               </p>
             </div>
           </div>

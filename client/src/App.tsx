@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useCustomAuth } from "@/hooks/useCustomAuth";
 import CustomLoginForm from "@/components/CustomLoginForm";
+import Landing from "@/pages/Landing";
 import Home from "@/pages/Home";
 import NotFound from "@/pages/not-found";
 
@@ -17,8 +18,13 @@ function Router() {
 
   return (
     <Switch>
-      {isLoading || !isAuthenticated ? (
-        <Route path="/" component={() => <CustomLoginForm onLoginSuccess={handleLoginSuccess} />} />
+      {isLoading ? (
+        <Route path="/" component={() => <div>Loading...</div>} />
+      ) : !isAuthenticated ? (
+        <>
+          <Route path="/" component={Landing} />
+          <Route path="/login" component={() => <CustomLoginForm onLoginSuccess={handleLoginSuccess} />} />
+        </>
       ) : (
         <>
           <Route path="/" component={Home} />
