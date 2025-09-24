@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -7,6 +8,7 @@ import { Plus, BarChart3, FileText, Users, Clock } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { isUnauthorizedError } from "@/lib/authUtils";
+import { useCustomAuth } from "@/hooks/useCustomAuth";
 
 // Components
 import Header from "@/components/Header";
@@ -53,6 +55,8 @@ interface Stats {
 
 export default function Home() {
   const [currentView, setCurrentView] = useState<'dashboard' | 'submit' | 'admin'>('dashboard');
+  const [, setLocation] = useLocation();
+  const { logout } = useCustomAuth();
   const [editingPost, setEditingPost] = useState<Post | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -322,8 +326,9 @@ export default function Home() {
     },
   });
 
-  const handleLogout = () => {
-    window.location.href = "/api/logout";
+  const handleLogout = async () => {
+    await logout();
+    setLocation('/');
   };
 
   const handlePostSubmit = (postData: { caption: string; images: File[]; type: string }) => {
