@@ -7,9 +7,12 @@ import {
   type Post, 
   type InsertPost,
   type WhitelistedEmail,
-  type InsertWhitelistedEmail
+  type InsertWhitelistedEmail,
+  type AdminLoginData,
+  type EmailLoginData
 } from "@shared/schema";
 import { randomUUID } from "crypto";
+import bcrypt from "bcrypt";
 import { db } from "./db";
 import { eq, desc } from "drizzle-orm";
 
@@ -36,6 +39,11 @@ export interface IStorage {
   getAllWhitelistedEmails(): Promise<WhitelistedEmail[]>;
   isEmailWhitelisted(email: string): Promise<boolean>;
   bulkAddWhitelistedEmails(emails: string[], addedBy: string): Promise<WhitelistedEmail[]>;
+  
+  // Custom authentication methods
+  authenticateAdmin(email: string, password: string): Promise<User | null>;
+  authenticateWhitelistedUser(email: string): Promise<User | null>;
+  createAdminUser(email: string, password: string, firstName: string, lastName: string): Promise<User>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -387,6 +395,75 @@ export class MemStorage implements IStorage {
     }
     
     return addedEmails;
+  }
+
+  // Custom authentication methods
+  async authenticateAdmin(email: string, password: string): Promise<User | null> {
+    const [user] = await db
+      .select()
+      .from(users)
+      .where(eq(users.email, email.toLowerCase()));
+    
+    if (!user || user.role !== 'admin' || !user.password) {
+      return null;
+    }
+    
+    const isValidPassword = await bcrypt.compare(password, user.password);
+    return isValidPassword ? user : null;
+  }
+
+  async authenticateWhitelistedUser(email: string): Promise<User | null> {
+    const normalizedEmail = email.toLowerCase();
+    
+    // Check if email is whitelisted
+    const isWhitelisted = await this.isEmailWhitelisted(normalizedEmail);
+    if (!isWhitelisted) {
+      return null;
+    }
+    
+    // Try to find existing user
+    const [existingUser] = await db
+      .select()
+      .from(users)
+      .where(eq(users.email, normalizedEmail));
+    
+    if (existingUser) {
+      return existingUser;
+    }
+    
+    // Create new contributor user if doesn't exist
+    const [newUser] = await db
+      .insert(users)
+      .values({
+        email: normalizedEmail,
+        firstName: normalizedEmail.split('@')[0], // Use email prefix as name
+        lastName: '',
+        role: 'contributor',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .returning();
+    
+    return newUser;
+  }
+
+  async createAdminUser(email: string, password: string, firstName: string, lastName: string): Promise<User> {
+    const hashedPassword = await bcrypt.hash(password, 12);
+    
+    const [user] = await db
+      .insert(users)
+      .values({
+        email: email.toLowerCase(),
+        password: hashedPassword,
+        firstName,
+        lastName,
+        role: 'admin',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .returning();
+    
+    return user;
   }
 }
 

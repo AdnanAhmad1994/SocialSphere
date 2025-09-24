@@ -23,13 +23,14 @@ export const sessions = pgTable(
   (table) => [index("IDX_session_expire").on(table.expire)],
 );
 
-// User storage table (required for Replit Auth)
+// User storage table
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   email: varchar("email").unique(),
   firstName: varchar("first_name"),
   lastName: varchar("last_name"),
   profileImageUrl: varchar("profile_image_url"),
+  password: varchar("password"), // For admin users only, nullable
   role: varchar("role", { enum: ["admin", "contributor"] }).notNull().default("contributor"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
@@ -85,6 +86,18 @@ export const insertWhitelistedEmailSchema = createInsertSchema(whitelistedEmails
   email: z.string().email("Valid email address is required"),
 });
 
+// Authentication schemas
+export const adminLoginSchema = z.object({
+  email: z.string().email("Valid email address is required"),
+  password: z.string().min(1, "Password is required"),
+});
+
+export const emailLoginSchema = z.object({
+  email: z.string().email("Valid email address is required"),
+});
+
 export type InsertPostData = z.infer<typeof insertPostSchema>;
 export type UpdatePostData = z.infer<typeof updatePostSchema>;
 export type InsertWhitelistedEmailData = z.infer<typeof insertWhitelistedEmailSchema>;
+export type AdminLoginData = z.infer<typeof adminLoginSchema>;
+export type EmailLoginData = z.infer<typeof emailLoginSchema>;
