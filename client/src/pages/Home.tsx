@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useLocation } from "wouter";
+import { useLocation, Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -485,68 +485,118 @@ export default function Home() {
             {/* Quick Stats */}
             {stats && (
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <Card className="hover-elevate">
-                  <CardHeader className="pb-2">
-                    <div className="flex items-center justify-between">
-                      <FileText className="h-4 w-4 text-muted-foreground" />
-                      <Badge variant="secondary">
-                        {user.role === 'admin' ? stats.totalPosts : posts.length}
-                      </Badge>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="pt-0">
-                    <p className="text-sm font-medium">
-                      {user.role === 'admin' ? 'Total Posts' : 'Your Posts'}
-                    </p>
-                  </CardContent>
-                </Card>
-
-                <Card className="hover-elevate border-l-4 border-l-chart-2">
-                  <CardHeader className="pb-2">
-                    <div className="flex items-center justify-between">
-                      <Clock className="h-4 w-4 text-chart-2" />
-                      <Badge className="bg-chart-2 text-white">
-                        {user.role === 'admin' ? 
-                          stats.pendingPosts : 
-                          posts.filter(p => p.status === 'pending').length
-                        }
-                      </Badge>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="pt-0">
-                    <p className="text-sm font-medium">Pending Review</p>
-                  </CardContent>
-                </Card>
-
-                <Card className="hover-elevate border-l-4 border-l-chart-1">
-                  <CardHeader className="pb-2">
-                    <div className="flex items-center justify-between">
-                      <FileText className="h-4 w-4 text-chart-1" />
-                      <Badge className="bg-chart-1 text-white">
-                        {user.role === 'admin' ? 
-                          stats.approvedPosts : 
-                          posts.filter(p => p.status === 'approved').length
-                        }
-                      </Badge>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="pt-0">
-                    <p className="text-sm font-medium">Approved</p>
-                  </CardContent>
-                </Card>
-
-                {user.role === 'admin' && (
+                {user.role === 'admin' ? (
+                  <Link href="/admin/posts/all" className="block h-full" data-testid="link-total-posts">
+                    <Card className="hover-elevate cursor-pointer h-full">
+                      <CardHeader className="pb-2">
+                        <div className="flex items-center justify-between">
+                          <FileText className="h-4 w-4 text-muted-foreground" />
+                          <Badge variant="secondary" data-testid="badge-total-posts">
+                            {stats.totalPosts}
+                          </Badge>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="pt-0">
+                        <p className="text-sm font-medium">Total Posts</p>
+                      </CardContent>
+                    </Card>
+                  </Link>
+                ) : (
                   <Card className="hover-elevate">
                     <CardHeader className="pb-2">
                       <div className="flex items-center justify-between">
-                        <Users className="h-4 w-4 text-muted-foreground" />
-                        <Badge variant="secondary">{stats.totalUsers}</Badge>
+                        <FileText className="h-4 w-4 text-muted-foreground" />
+                        <Badge variant="secondary">
+                          {posts.length}
+                        </Badge>
                       </div>
                     </CardHeader>
                     <CardContent className="pt-0">
-                      <p className="text-sm font-medium">Active Users</p>
+                      <p className="text-sm font-medium">Your Posts</p>
                     </CardContent>
                   </Card>
+                )}
+
+                {user.role === 'admin' ? (
+                  <Link href="/admin/posts/pending" className="block h-full" data-testid="link-pending-posts">
+                    <Card className="hover-elevate border-l-4 border-l-chart-2 cursor-pointer h-full">
+                      <CardHeader className="pb-2">
+                        <div className="flex items-center justify-between">
+                          <Clock className="h-4 w-4 text-chart-2" />
+                          <Badge className="bg-chart-2 text-white" data-testid="badge-pending-posts">
+                            {stats.pendingPosts}
+                          </Badge>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="pt-0">
+                        <p className="text-sm font-medium">Pending Review</p>
+                      </CardContent>
+                    </Card>
+                  </Link>
+                ) : (
+                  <Card className="hover-elevate border-l-4 border-l-chart-2">
+                    <CardHeader className="pb-2">
+                      <div className="flex items-center justify-between">
+                        <Clock className="h-4 w-4 text-chart-2" />
+                        <Badge className="bg-chart-2 text-white">
+                          {posts.filter(p => p.status === 'pending').length}
+                        </Badge>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="pt-0">
+                      <p className="text-sm font-medium">Pending Review</p>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {user.role === 'admin' ? (
+                  <Link href="/admin/posts/approved" className="block h-full" data-testid="link-approved-posts">
+                    <Card className="hover-elevate border-l-4 border-l-chart-1 cursor-pointer h-full">
+                      <CardHeader className="pb-2">
+                        <div className="flex items-center justify-between">
+                          <FileText className="h-4 w-4 text-chart-1" />
+                          <Badge className="bg-chart-1 text-white" data-testid="badge-approved-posts">
+                            {stats.approvedPosts}
+                          </Badge>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="pt-0">
+                        <p className="text-sm font-medium">Approved</p>
+                      </CardContent>
+                    </Card>
+                  </Link>
+                ) : (
+                  <Card className="hover-elevate border-l-4 border-l-chart-1">
+                    <CardHeader className="pb-2">
+                      <div className="flex items-center justify-between">
+                        <FileText className="h-4 w-4 text-chart-1" />
+                        <Badge className="bg-chart-1 text-white">
+                          {posts.filter(p => p.status === 'approved').length}
+                        </Badge>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="pt-0">
+                      <p className="text-sm font-medium">Approved</p>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {user.role === 'admin' && (
+                  <Link href="/admin/users" className="block h-full" data-testid="link-total-users">
+                    <Card className="hover-elevate cursor-pointer h-full">
+                      <CardHeader className="pb-2">
+                        <div className="flex items-center justify-between">
+                          <Users className="h-4 w-4 text-muted-foreground" />
+                          <Badge variant="secondary" data-testid="badge-total-users">
+                            {stats.totalUsers}
+                          </Badge>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="pt-0">
+                        <p className="text-sm font-medium">Total Users</p>
+                      </CardContent>
+                    </Card>
+                  </Link>
                 )}
               </div>
             )}

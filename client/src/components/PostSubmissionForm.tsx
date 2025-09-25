@@ -52,12 +52,25 @@ export default function PostSubmissionForm({ onSubmit }: PostSubmissionFormProps
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Client-side validation
+    const trimmedCaption = caption.trim();
+    
+    if (!trimmedCaption) {
+      alert('Caption is required');
+      return;
+    }
+    
+    if (trimmedCaption.length > maxCaptionLength) {
+      alert(`Caption too long. Maximum ${maxCaptionLength} characters allowed. Current: ${trimmedCaption.length}`);
+      return;
+    }
+    
     const postData = {
-      caption: caption.trim(),
+      caption: trimmedCaption,
       images,
       type: images.length > 0 ? 'image_post' : 'text_post'
     };
-    console.log('Post submitted:', postData);
     onSubmit?.(postData);
     
     // Reset form
@@ -91,7 +104,42 @@ export default function PostSubmissionForm({ onSubmit }: PostSubmissionFormProps
                 id="caption"
                 placeholder="Write your caption here... What's happening at Riphah School?"
                 value={caption}
-                onChange={(e) => setCaption(e.target.value)}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  if (value.length <= maxCaptionLength) {
+                    setCaption(value);
+                  }
+                }}
+                onPaste={(e) => {
+                  e.preventDefault(); // Always prevent default paste behavior
+                  
+                  const pastedText = e.clipboardData.getData('text');
+                  const currentText = caption;
+                  const cursorStart = e.currentTarget.selectionStart || 0;
+                  const cursorEnd = e.currentTarget.selectionEnd || 0;
+                  const beforeSelection = currentText.slice(0, cursorStart);
+                  const afterSelection = currentText.slice(cursorEnd);
+                  
+                  // Calculate the maximum text we can paste
+                  const availableLength = maxCaptionLength - beforeSelection.length - afterSelection.length;
+                  
+                  if (availableLength <= 0) {
+                    alert(`Cannot paste: caption is at maximum ${maxCaptionLength} character limit`);
+                    return;
+                  }
+                  
+                  if (pastedText.length <= availableLength) {
+                    // Paste fits completely
+                    const newText = beforeSelection + pastedText + afterSelection;
+                    setCaption(newText);
+                  } else {
+                    // Truncate paste to fit
+                    const truncatedPaste = pastedText.slice(0, availableLength);
+                    const newText = beforeSelection + truncatedPaste + afterSelection;
+                    setCaption(newText);
+                    alert(`Pasted text was truncated to fit ${maxCaptionLength} character limit`);
+                  }
+                }}
                 rows={4}
                 maxLength={maxCaptionLength}
                 className="resize-none"
@@ -205,15 +253,22 @@ export default function PostSubmissionForm({ onSubmit }: PostSubmissionFormProps
                 </div>
               </div>
               
-              <Button 
-                type="submit" 
-                disabled={!caption.trim()}
-                className="min-w-32"
-                data-testid="button-submit-post"
-              >
-                <Send className="mr-2 h-4 w-4" />
-                Submit for Review
-              </Button>
+              <div className="flex flex-col items-end gap-1">
+                <Button 
+                  type="submit" 
+                  disabled={!caption.trim()}
+                  className="min-w-32"
+                  data-testid="button-submit-post"
+                >
+                  <Send className="mr-2 h-4 w-4" />
+                  Submit for Review
+                </Button>
+                {!caption.trim() && (
+                  <p className="text-xs text-muted-foreground" data-testid="text-validation-error">
+                    Caption required to submit
+                  </p>
+                )}
+              </div>
             </div>
           </form>
         </CardContent>

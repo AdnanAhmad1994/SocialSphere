@@ -150,10 +150,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Validate request body
-      const validatedData = insertPostSchema.parse({
+      const validation = insertPostSchema.safeParse({
         caption: req.body.caption,
         images: []
       });
+      
+      if (!validation.success) {
+        console.log('Post validation failed:', validation.error.errors);
+        return res.status(400).json({
+          message: "Validation failed",
+          errors: validation.error.errors
+        });
+      }
+      
+      const validatedData = validation.data;
 
       // Upload images to object storage
       const imageUrls: string[] = [];
