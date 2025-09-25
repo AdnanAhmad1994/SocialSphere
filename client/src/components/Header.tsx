@@ -105,14 +105,20 @@ export default function Header({ user, pendingCount = 0, onAuth, onLogout }: Hea
                 <DropdownMenuContent align="end" className="w-56">
                   <DropdownMenuLabel>My Account</DropdownMenuLabel>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem data-testid="menu-profile">
-                    <User className="mr-2 h-4 w-4" />
-                    Profile
+                  <DropdownMenuItem asChild data-testid="menu-profile">
+                    <Link href="/profile" className="flex items-center">
+                      <User className="mr-2 h-4 w-4" />
+                      Profile
+                    </Link>
                   </DropdownMenuItem>
-                  <DropdownMenuItem data-testid="menu-settings">
-                    <Settings className="mr-2 h-4 w-4" />
-                    Settings
-                  </DropdownMenuItem>
+                  {user.role === 'admin' && (
+                    <DropdownMenuItem asChild data-testid="menu-admin-settings">
+                      <Link href="/admin/settings" className="flex items-center">
+                        <Settings className="mr-2 h-4 w-4" />
+                        Admin Settings
+                      </Link>
+                    </DropdownMenuItem>
+                  )}
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={handleLogout} data-testid="menu-logout">
                     <LogOut className="mr-2 h-4 w-4" />

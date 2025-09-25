@@ -12,6 +12,7 @@ import PendingPosts from "@/pages/PendingPosts";
 import ApprovedPosts from "@/pages/ApprovedPosts";
 import UsersManagement from "@/pages/UsersManagement";
 import NotFound from "@/pages/not-found";
+import UserProfile from "@/pages/UserProfile";
 
 function Router() {
   const { isAuthenticated, isLoading, refreshAuth } = useCustomAuth();
@@ -44,6 +45,7 @@ function Router() {
           <Route path="/admin/posts/pending" component={PendingPosts} />
           <Route path="/admin/posts/approved" component={ApprovedPosts} />
           <Route path="/admin/users" component={UsersManagement} />
+          <Route path="/profile" component={UserProfile} />
         </>
       )}
       <Route component={NotFound} />
