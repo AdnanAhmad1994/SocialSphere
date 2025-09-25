@@ -9,7 +9,11 @@ import {
   type WhitelistedEmail,
   type InsertWhitelistedEmail,
   type AdminLoginData,
-  type EmailLoginData
+  type EmailLoginData,
+  type Settings,
+  type UpdateUserData,
+  type ContributorMetrics,
+  settingsSchema
 } from "@shared/schema";
 import { randomUUID } from "crypto";
 import bcrypt from "bcrypt";
@@ -44,6 +48,17 @@ export interface IStorage {
   authenticateAdmin(email: string, password: string): Promise<User | null>;
   authenticateWhitelistedUser(email: string): Promise<User | null>;
   createAdminUser(email: string, password: string, firstName: string, lastName: string): Promise<User>;
+  
+  // Settings operations
+  getSettings(): Promise<Settings>;
+  updateSettings(updates: Partial<Settings>): Promise<Settings>;
+  
+  // User profile operations
+  updateUser(userId: string, updates: UpdateUserData): Promise<User | undefined>;
+  
+  // Contributor metrics operations
+  getContributorMetrics(userId: string): Promise<ContributorMetrics | undefined>;
+  listContributorMetrics(): Promise<ContributorMetrics[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -272,6 +287,146 @@ export class DatabaseStorage implements IStorage {
       .returning();
     
     return user;
+  }
+
+  // Settings operations (stored as JSON in database)
+  async getSettings(): Promise<Settings> {
+    // Store settings in a simple key-value way using the users table
+    // Look for a special admin user entry with id 'settings'
+    const [settingsRecord] = await db
+      .select()
+      .from(users)
+      .where(eq(users.id, 'settings'));
+    
+    if (settingsRecord?.profileImageUrl) {
+      try {
+        const storedSettings = JSON.parse(settingsRecord.profileImageUrl);
+        return settingsSchema.parse(storedSettings);
+      } catch {
+        // Fall back to defaults if JSON is invalid
+      }
+    }
+    
+    // Return defaults if no settings found
+    return settingsSchema.parse({});
+  }
+
+  async updateSettings(updates: Partial<Settings>): Promise<Settings> {
+    const currentSettings = await this.getSettings();
+    const newSettings = settingsSchema.parse({ ...currentSettings, ...updates });
+    
+    // Store settings by upserting to a special record
+    await db
+      .insert(users)
+      .values({
+        id: 'settings',
+        email: 'settings@internal',
+        firstName: 'System',
+        lastName: 'Settings',
+        profileImageUrl: JSON.stringify(newSettings),
+        role: 'admin',
+        password: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .onConflictDoUpdate({
+        target: users.id,
+        set: {
+          profileImageUrl: JSON.stringify(newSettings),
+          updatedAt: new Date(),
+        },
+      });
+    
+    return newSettings;
+  }
+
+  // User profile operations
+  async updateUser(userId: string, updates: UpdateUserData): Promise<User | undefined> {
+    // SECURITY: Whitelist allowed fields and normalize email
+    const updateData: any = { updatedAt: new Date() };
+    
+    // Only allow specific fields to be updated
+    if (updates.firstName !== undefined) updateData.firstName = updates.firstName;
+    if (updates.lastName !== undefined) updateData.lastName = updates.lastName;
+    if (updates.profileImageUrl !== undefined) updateData.profileImageUrl = updates.profileImageUrl;
+    
+    // Hash password if provided
+    if (updates.password) {
+      updateData.password = await bcrypt.hash(updates.password, 12);
+    }
+    
+    // Normalize email if provided (but don't allow role changes)
+    // Note: Email updates should be rare and handled carefully in routes
+    
+    const [user] = await db
+      .update(users)
+      .set(updateData)
+      .where(eq(users.id, userId))
+      .returning();
+    
+    return user;
+  }
+
+  // Contributor metrics operations
+  async getContributorMetrics(userId: string): Promise<ContributorMetrics | undefined> {
+    const user = await this.getUser(userId);
+    if (!user) return undefined;
+
+    const userPosts = await this.getPostsByUser(userId);
+    
+    const totalSubmitted = userPosts.length;
+    const totalApproved = userPosts.filter(p => p.status === 'approved').length;
+    const totalRejected = userPosts.filter(p => p.status === 'rejected').length;
+    const totalPending = userPosts.filter(p => p.status === 'pending').length;
+    
+    const approvalRate = totalSubmitted > 0 ? (totalApproved / totalSubmitted) * 100 : 0;
+    
+    // Calculate average time to approval
+    const approvedPosts = userPosts.filter(p => p.status === 'approved' && p.reviewedAt && p.submittedAt);
+    const avgTimeToApproval = approvedPosts.length > 0 
+      ? approvedPosts.reduce((sum, post) => {
+          const timeDiff = post.reviewedAt!.getTime() - post.submittedAt!.getTime();
+          return sum + (timeDiff / (1000 * 60 * 60)); // Convert to hours
+        }, 0) / approvedPosts.length
+      : null;
+
+    const lastSubmissionDate = userPosts.length > 0 
+      ? userPosts[0].submittedAt?.toISOString() || null 
+      : null;
+
+    return {
+      userId: user.id,
+      userEmail: user.email,
+      userName: `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email,
+      totalSubmitted,
+      totalApproved,
+      totalRejected,
+      totalPending,
+      approvalRate,
+      avgTimeToApproval,
+      lastSubmissionDate,
+      recentPosts: userPosts.slice(0, 5).map(post => ({
+        id: post.id,
+        caption: post.caption,
+        status: post.status as 'pending' | 'approved' | 'rejected',
+        submittedAt: post.submittedAt!.toISOString(),
+        reviewedAt: post.reviewedAt?.toISOString() || null,
+      })),
+    };
+  }
+
+  async listContributorMetrics(): Promise<ContributorMetrics[]> {
+    const allUsers = await db.select().from(users).where(eq(users.role, 'contributor'));
+    const metrics: ContributorMetrics[] = [];
+
+    for (const user of allUsers) {
+      const userMetrics = await this.getContributorMetrics(user.id);
+      if (userMetrics) {
+        metrics.push(userMetrics);
+      }
+    }
+
+    return metrics.sort((a, b) => b.totalSubmitted - a.totalSubmitted);
   }
 }
 
@@ -514,6 +669,103 @@ export class MemStorage implements IStorage {
     
     this.users.set(user.id, user);
     return user;
+  }
+
+  // Settings operations (in-memory)
+  private settings: Settings = settingsSchema.parse({});
+
+  async getSettings(): Promise<Settings> {
+    return this.settings;
+  }
+
+  async updateSettings(updates: Partial<Settings>): Promise<Settings> {
+    this.settings = settingsSchema.parse({ ...this.settings, ...updates });
+    return this.settings;
+  }
+
+  // User profile operations
+  async updateUser(userId: string, updates: UpdateUserData): Promise<User | undefined> {
+    const user = this.users.get(userId);
+    if (!user) return undefined;
+
+    // SECURITY: Whitelist allowed fields only
+    const updateData: any = { updatedAt: new Date() };
+    
+    // Only allow specific fields to be updated
+    if (updates.firstName !== undefined) updateData.firstName = updates.firstName;
+    if (updates.lastName !== undefined) updateData.lastName = updates.lastName;
+    if (updates.profileImageUrl !== undefined) updateData.profileImageUrl = updates.profileImageUrl;
+    
+    // Hash password if provided
+    if (updates.password) {
+      updateData.password = await bcrypt.hash(updates.password, 12);
+    }
+
+    const updatedUser: User = { ...user, ...updateData };
+    this.users.set(userId, updatedUser);
+    return updatedUser;
+  }
+
+  // Contributor metrics operations
+  async getContributorMetrics(userId: string): Promise<ContributorMetrics | undefined> {
+    const user = this.users.get(userId);
+    if (!user) return undefined;
+
+    const userPosts = await this.getPostsByUser(userId);
+    
+    const totalSubmitted = userPosts.length;
+    const totalApproved = userPosts.filter(p => p.status === 'approved').length;
+    const totalRejected = userPosts.filter(p => p.status === 'rejected').length;
+    const totalPending = userPosts.filter(p => p.status === 'pending').length;
+    
+    const approvalRate = totalSubmitted > 0 ? (totalApproved / totalSubmitted) * 100 : 0;
+    
+    // Calculate average time to approval
+    const approvedPosts = userPosts.filter(p => p.status === 'approved' && p.reviewedAt && p.submittedAt);
+    const avgTimeToApproval = approvedPosts.length > 0 
+      ? approvedPosts.reduce((sum, post) => {
+          const timeDiff = post.reviewedAt!.getTime() - post.submittedAt!.getTime();
+          return sum + (timeDiff / (1000 * 60 * 60)); // Convert to hours
+        }, 0) / approvedPosts.length
+      : null;
+
+    const lastSubmissionDate = userPosts.length > 0 
+      ? userPosts[0].submittedAt?.toISOString() || null 
+      : null;
+
+    return {
+      userId: user.id,
+      userEmail: user.email,
+      userName: `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email,
+      totalSubmitted,
+      totalApproved,
+      totalRejected,
+      totalPending,
+      approvalRate,
+      avgTimeToApproval,
+      lastSubmissionDate,
+      recentPosts: userPosts.slice(0, 5).map(post => ({
+        id: post.id,
+        caption: post.caption,
+        status: post.status as 'pending' | 'approved' | 'rejected',
+        submittedAt: post.submittedAt!.toISOString(),
+        reviewedAt: post.reviewedAt?.toISOString() || null,
+      })),
+    };
+  }
+
+  async listContributorMetrics(): Promise<ContributorMetrics[]> {
+    const contributors = Array.from(this.users.values()).filter(user => user.role === 'contributor');
+    const metrics: ContributorMetrics[] = [];
+
+    for (const user of contributors) {
+      const userMetrics = await this.getContributorMetrics(user.id);
+      if (userMetrics) {
+        metrics.push(userMetrics);
+      }
+    }
+
+    return metrics.sort((a, b) => b.totalSubmitted - a.totalSubmitted);
   }
 }
 
