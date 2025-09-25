@@ -54,40 +54,14 @@ export class DatabaseStorage implements IStorage {
   }
 
   async upsertUser(userData: UpsertUser): Promise<User> {
-    // Determine user role based on provided role or email/name patterns
-    const determineRole = (userData: UpsertUser): 'admin' | 'contributor' => {
-      // If role is explicitly provided, handle legacy migration
-      if (userData.role) {
-        const role = userData.role as string; // Allow checking for legacy roles
-        if (role === 'admin') return 'admin';
-        // Map legacy roles: student -> contributor, faculty -> contributor
-        if (role === 'student' || role === 'faculty') return 'contributor';
-        // If role is already admin/contributor, keep it
-        if (role === 'contributor') return 'contributor';
-      }
-      
-      // For new users without explicit role, determine based on patterns
-      const email = userData.email?.toLowerCase() || '';
-      const firstName = userData.firstName?.toLowerCase() || '';
-      const lastName = userData.lastName?.toLowerCase() || '';
-      
-      // Check for admin indicators in email or name
-      if (email.includes('admin') || 
-          firstName.includes('admin') || 
-          lastName.includes('admin') ||
-          email.includes('@riphah.edu.pk') // example admin domain
-      ) {
-        return 'admin';
-      }
-      
-      // Default to contributor for all other cases
-      return 'contributor';
-    };
-
-    const userRole = determineRole(userData);
+    // SECURITY: upsertUser is NEVER allowed to create admin users
+    // Admin users must only be created via createAdminUser method
+    // This prevents any privilege escalation through this method
+    
     const normalizedUserData = {
       ...userData,
-      role: userRole,
+      email: userData.email?.toLowerCase(), // Normalize email for consistency
+      role: 'contributor' as const, // HARD-CODED: Always contributor, never admin
     };
 
     const [user] = await db
@@ -99,7 +73,7 @@ export class DatabaseStorage implements IStorage {
           firstName: normalizedUserData.firstName,
           lastName: normalizedUserData.lastName,
           profileImageUrl: normalizedUserData.profileImageUrl,
-          role: userRole,
+          role: 'contributor' as const, // SECURITY: Never update role to admin
           updatedAt: new Date(),
         },
       })
@@ -319,14 +293,20 @@ export class MemStorage implements IStorage {
 
   async upsertUser(userData: UpsertUser): Promise<User> {
     const existing = this.users.get(userData.id!);
+    
+    // SECURITY: Validate email is not empty
+    if (!userData.email || userData.email.trim() === '') {
+      throw new Error('Email is required and cannot be empty');
+    }
+    
     const user: User = {
       id: userData.id!,
-      email: userData.email || null,
+      email: userData.email.toLowerCase(), // Normalize email
       firstName: userData.firstName || null,
       lastName: userData.lastName || null,
       profileImageUrl: userData.profileImageUrl || null,
       password: userData.password || null,
-      role: userData.role || 'contributor',
+      role: 'contributor' as const, // SECURITY: Hard-coded, never admin
       createdAt: existing?.createdAt || new Date(),
       updatedAt: new Date(),
     };
