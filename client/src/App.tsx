@@ -1,4 +1,4 @@
-import { Switch, Route } from "wouter";
+import { Switch, Route, useLocation } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -7,6 +7,10 @@ import { useCustomAuth } from "@/hooks/useCustomAuth";
 import CustomLoginForm from "@/components/CustomLoginForm";
 import Landing from "@/pages/Landing";
 import Home from "@/pages/Home";
+import AllPosts from "@/pages/AllPosts";
+import PendingPosts from "@/pages/PendingPosts";
+import ApprovedPosts from "@/pages/ApprovedPosts";
+import UsersManagement from "@/pages/UsersManagement";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -14,6 +18,13 @@ function Router() {
 
   const handleLoginSuccess = () => {
     refreshAuth();
+  };
+
+  // Component to redirect authenticated users from login page
+  const LoginRedirect = () => {
+    const [, setLocation] = useLocation();
+    setLocation('/');
+    return <div>Redirecting...</div>;
   };
 
   return (
@@ -28,6 +39,11 @@ function Router() {
       ) : (
         <>
           <Route path="/" component={Home} />
+          <Route path="/login" component={LoginRedirect} />
+          <Route path="/admin/posts/all" component={AllPosts} />
+          <Route path="/admin/posts/pending" component={PendingPosts} />
+          <Route path="/admin/posts/approved" component={ApprovedPosts} />
+          <Route path="/admin/users" component={UsersManagement} />
         </>
       )}
       <Route component={NotFound} />
