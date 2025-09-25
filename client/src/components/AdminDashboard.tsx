@@ -22,7 +22,9 @@ import {
   Mail,
   Upload,
   Plus,
-  Trash2
+  Trash2,
+  Settings,
+  BarChart3
 } from "lucide-react";
 import { Link } from "wouter";
 import PostCard from "./PostCard";
@@ -291,6 +293,40 @@ export default function AdminDashboard({
             </CardContent>
           </Card>
         </Link>
+      </div>
+
+      {/* Admin Tools Section */}
+      <div>
+        <h2 className="text-xl font-semibold text-foreground mb-4">Admin Tools</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Link href="/admin/settings" className="block h-full" data-testid="link-admin-settings">
+            <Card className="hover-elevate cursor-pointer h-full border-l-4 border-l-primary">
+              <CardHeader className="pb-2">
+                <div className="flex items-center justify-between">
+                  <Settings className="h-5 w-5 text-primary" />
+                </div>
+              </CardHeader>
+              <CardContent className="pt-0">
+                <h3 className="text-base font-medium mb-1">System Settings</h3>
+                <p className="text-sm text-muted-foreground">Configure caption limits, image limits, and approval settings</p>
+              </CardContent>
+            </Card>
+          </Link>
+
+          <Link href="/admin/performance" className="block h-full" data-testid="link-contributor-performance">
+            <Card className="hover-elevate cursor-pointer h-full border-l-4 border-l-chart-3">
+              <CardHeader className="pb-2">
+                <div className="flex items-center justify-between">
+                  <BarChart3 className="h-5 w-5 text-chart-3" />
+                </div>
+              </CardHeader>
+              <CardContent className="pt-0">
+                <h3 className="text-base font-medium mb-1">Performance Analytics</h3>
+                <p className="text-sm text-muted-foreground">View contributor metrics and engagement analytics</p>
+              </CardContent>
+            </Card>
+          </Link>
+        </div>
       </div>
 
       {/* Tabs for different management sections */}

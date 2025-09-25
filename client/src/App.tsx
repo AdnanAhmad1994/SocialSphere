@@ -11,6 +11,8 @@ import AllPosts from "@/pages/AllPosts";
 import PendingPosts from "@/pages/PendingPosts";
 import ApprovedPosts from "@/pages/ApprovedPosts";
 import UsersManagement from "@/pages/UsersManagement";
+import AdminSettings from "@/pages/AdminSettings";
+import ContributorPerformance from "@/pages/ContributorPerformance";
 import NotFound from "@/pages/not-found";
 import UserProfile from "@/pages/UserProfile";
 
@@ -45,6 +47,8 @@ function Router() {
           <Route path="/admin/posts/pending" component={PendingPosts} />
           <Route path="/admin/posts/approved" component={ApprovedPosts} />
           <Route path="/admin/users" component={UsersManagement} />
+          <Route path="/admin/settings" component={AdminSettings} />
+          <Route path="/admin/performance" component={ContributorPerformance} />
           <Route path="/profile" component={UserProfile} />
         </>
       )}
