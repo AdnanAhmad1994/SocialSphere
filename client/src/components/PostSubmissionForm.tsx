@@ -1,4 +1,5 @@
 import { useState, useRef } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -7,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Upload, X, Image as ImageIcon, FileText, Send, Eye } from "lucide-react";
 import SocialMediaPreview from "./SocialMediaPreview";
+import type { Settings } from "@shared/schema";
 
 interface PostSubmissionFormProps {
   onSubmit?: (post: { caption: string; images: File[]; type: string }) => void;
@@ -18,8 +20,20 @@ export default function PostSubmissionForm({ onSubmit }: PostSubmissionFormProps
   const [isDragOver, setIsDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const maxCaptionLength = 500;
-  const maxImages = 4;
+  // Fetch dynamic settings from public endpoint
+  const { data: settings, isLoading: isLoadingSettings, error: settingsError } = useQuery<{
+    captionMax: number;
+    maxImages: number;
+    requiresApproval: boolean;
+  }>({
+    queryKey: ['/api/settings'],
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+    retry: 2,
+  });
+
+  // Use dynamic settings with fallback to defaults
+  const maxCaptionLength = settings?.captionMax ?? 500;
+  const maxImages = settings?.maxImages ?? 4;
 
   const handleFileSelect = (files: FileList | null) => {
     if (!files) return;
@@ -148,6 +162,7 @@ export default function PostSubmissionForm({ onSubmit }: PostSubmissionFormProps
               <div className="flex justify-between items-center text-sm">
                 <span className="text-muted-foreground">
                   {caption.length}/{maxCaptionLength} characters
+                  {isLoadingSettings && <span className="ml-1 text-primary">(loading limits...)</span>}
                 </span>
                 <Badge variant={caption.length > maxCaptionLength * 0.9 ? "destructive" : "secondary"}>
                   {caption.length > maxCaptionLength * 0.9 ? "Almost full" : "Good"}
@@ -178,6 +193,7 @@ export default function PostSubmissionForm({ onSubmit }: PostSubmissionFormProps
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
                   PNG, JPG up to 10MB each (max {maxImages} images)
+                  {isLoadingSettings && <span className="ml-1 text-primary">(loading limits...)</span>}
                 </p>
               </div>
 

@@ -137,7 +137,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/posts', isCustomAuthenticated, upload.array('images', 4), async (req: any, res) => {
+  app.post('/api/posts', isCustomAuthenticated, upload.array('images', 20), async (req: any, res) => {
     try {
       const userId = req.session.userId;
       const user = await storage.getUser(userId);
@@ -162,9 +162,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      // Validate request body
+      // Get current settings for dynamic validation
+      const settings = await storage.getSettings();
+      
+      // Validate file count against dynamic settings
+      const uploadedFileCount = req.files ? req.files.length : 0;
+      if (uploadedFileCount > settings.maxImages) {
+        return res.status(400).json({ 
+          message: `Too many images. Maximum ${settings.maxImages} images allowed. You uploaded ${uploadedFileCount}.`,
+          maxImages: settings.maxImages,
+          uploaded: uploadedFileCount
+        });
+      }
+
+      // Validate caption length against dynamic settings
+      const trimmedCaption = req.body.caption?.trim() || '';
+      if (!trimmedCaption) {
+        return res.status(400).json({ message: "Caption is required" });
+      }
+      
+      if (trimmedCaption.length > settings.captionMax) {
+        return res.status(400).json({
+          message: `Caption too long. Maximum ${settings.captionMax} characters allowed. Current: ${trimmedCaption.length}`,
+          captionMax: settings.captionMax,
+          currentLength: trimmedCaption.length
+        });
+      }
+
+      // Basic validation for other fields
       const validation = insertPostSchema.safeParse({
-        caption: req.body.caption,
+        caption: trimmedCaption,
         images: []
       });
       
@@ -261,7 +288,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Update post content (users can edit their own posts only when pending)
-  app.put('/api/posts/:id', isCustomAuthenticated, upload.array('images', 4), async (req: any, res) => {
+  app.put('/api/posts/:id', isCustomAuthenticated, upload.array('images', 20), async (req: any, res) => {
     try {
       const userId = req.session.userId;
       const user = await storage.getUser(userId);
@@ -287,10 +314,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Only pending posts can be edited" });
       }
 
+      // Get current settings for dynamic validation
+      const settings = await storage.getSettings();
+      
+      // Validate file count against dynamic settings
+      const uploadedFileCount = req.files ? req.files.length : 0;
+      if (uploadedFileCount > settings.maxImages) {
+        return res.status(400).json({ 
+          message: `Too many images. Maximum ${settings.maxImages} images allowed. You uploaded ${uploadedFileCount}.`,
+          maxImages: settings.maxImages,
+          uploaded: uploadedFileCount
+        });
+      }
+
       const { caption } = req.body;
       const files = req.files as Express.Multer.File[];
 
-      // Validate with zod schema
+      // Validate caption length against dynamic settings if provided
+      if (caption) {
+        const trimmedCaption = caption.trim();
+        if (trimmedCaption.length > settings.captionMax) {
+          return res.status(400).json({
+            message: `Caption too long. Maximum ${settings.captionMax} characters allowed. Current: ${trimmedCaption.length}`,
+            captionMax: settings.captionMax,
+            currentLength: trimmedCaption.length
+          });
+        }
+      }
+
+      // Basic validation for other fields
       const validation = updatePostSchema.safeParse({ caption });
       if (!validation.success) {
         return res.status(400).json({ 
@@ -636,6 +688,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error bulk adding whitelisted emails:", error);
       res.status(500).json({ message: "Failed to bulk add whitelisted emails" });
+    }
+  });
+
+  // Public Settings routes (read-only, client-safe settings)
+  app.get('/api/settings', async (req: any, res) => {
+    try {
+      const settings = await storage.getSettings();
+      
+      // Return only client-safe settings (no sensitive admin data)
+      const publicSettings = {
+        captionMax: settings.captionMax,
+        maxImages: settings.maxImages,
+        requiresApproval: settings.requiresApproval,
+      };
+
+      res.json(publicSettings);
+    } catch (error) {
+      console.error("Error fetching public settings:", error);
+      // Return defaults if settings can't be loaded
+      res.json({
+        captionMax: 500,
+        maxImages: 4,
+        requiresApproval: true,
+      });
     }
   });
 

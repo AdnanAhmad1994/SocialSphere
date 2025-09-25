@@ -56,6 +56,8 @@ export default function AdminSettings() {
     mutationFn: (data: Partial<Settings>) => apiRequest('PUT', '/api/admin/settings', data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/settings'] });
+      // Also invalidate public settings cache used by PostSubmissionForm
+      queryClient.invalidateQueries({ queryKey: ['/api/settings'] });
       toast({
         title: "Success",
         description: "Settings updated successfully",
