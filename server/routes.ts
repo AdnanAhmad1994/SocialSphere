@@ -4,7 +4,18 @@ import multer from "multer";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated, getSession } from "./replitAuth";
 import { customAuthRouter, isCustomAuthenticated } from "./customAuth";
-import { insertPostSchema, updatePostSchema, insertWhitelistedEmailSchema, type InsertPostData, type UpdatePostData, type InsertWhitelistedEmailData } from "@shared/schema";
+import { 
+  insertPostSchema, 
+  updatePostSchema, 
+  insertWhitelistedEmailSchema, 
+  settingsSchema,
+  updateUserSchema,
+  type InsertPostData, 
+  type UpdatePostData, 
+  type InsertWhitelistedEmailData,
+  type Settings,
+  type UpdateUserData
+} from "@shared/schema";
 import { z } from "zod";
 import { uploadToObjectStorage } from "./objectStorage";
 
@@ -37,7 +48,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
-      res.json(user);
+      // Don't expose password hash
+      const { password, ...safeUser } = user;
+      res.json(safeUser);
     } catch (error) {
       console.error("Error fetching user:", error);
       res.status(500).json({ message: "Failed to fetch user" });
@@ -623,6 +636,140 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error bulk adding whitelisted emails:", error);
       res.status(500).json({ message: "Failed to bulk add whitelisted emails" });
+    }
+  });
+
+  // Admin Settings routes
+  app.get('/api/admin/settings', isCustomAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.session.userId;
+      const user = await storage.getUser(userId);
+      
+      if (!user || user.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const settings = await storage.getSettings();
+      res.json(settings);
+    } catch (error) {
+      console.error("Error fetching settings:", error);
+      res.status(500).json({ message: "Failed to fetch settings" });
+    }
+  });
+
+  app.put('/api/admin/settings', isCustomAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.session.userId;
+      const user = await storage.getUser(userId);
+      
+      if (!user || user.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const validation = settingsSchema.partial().safeParse(req.body);
+      if (!validation.success) {
+        return res.status(400).json({
+          message: "Validation failed",
+          errors: validation.error.errors
+        });
+      }
+
+      const updatedSettings = await storage.updateSettings(validation.data);
+      res.json(updatedSettings);
+    } catch (error) {
+      console.error("Error updating settings:", error);
+      res.status(500).json({ message: "Failed to update settings" });
+    }
+  });
+
+  // Admin Performance routes
+  app.get('/api/admin/performance', isCustomAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.session.userId;
+      const user = await storage.getUser(userId);
+      
+      if (!user || user.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const metrics = await storage.listContributorMetrics();
+      res.json(metrics);
+    } catch (error) {
+      console.error("Error fetching contributor metrics:", error);
+      res.status(500).json({ message: "Failed to fetch contributor metrics" });
+    }
+  });
+
+  app.get('/api/admin/performance/:userId', isCustomAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.session.userId;
+      const user = await storage.getUser(userId);
+      
+      if (!user || user.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const targetUserId = req.params.userId;
+      const metrics = await storage.getContributorMetrics(targetUserId);
+      
+      if (!metrics) {
+        return res.status(404).json({ message: "User metrics not found" });
+      }
+
+      res.json(metrics);
+    } catch (error) {
+      console.error("Error fetching user metrics:", error);
+      res.status(500).json({ message: "Failed to fetch user metrics" });
+    }
+  });
+
+  // User Profile routes
+  app.get('/api/users/me', isCustomAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.session.userId;
+      const user = await storage.getUser(userId);
+      
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Don't expose password hash
+      const { password, ...safeUser } = user;
+      res.json(safeUser);
+    } catch (error) {
+      console.error("Error fetching user profile:", error);
+      res.status(500).json({ message: "Failed to fetch user profile" });
+    }
+  });
+
+  app.patch('/api/users/me', isCustomAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.session.userId;
+      const user = await storage.getUser(userId);
+      
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const validation = updateUserSchema.safeParse(req.body);
+      if (!validation.success) {
+        return res.status(400).json({
+          message: "Validation failed",
+          errors: validation.error.errors
+        });
+      }
+
+      const updatedUser = await storage.updateUser(userId, validation.data);
+      if (!updatedUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Don't expose password hash
+      const { password, ...safeUser } = updatedUser;
+      res.json(safeUser);
+    } catch (error) {
+      console.error("Error updating user profile:", error);
+      res.status(500).json({ message: "Failed to update user profile" });
     }
   });
 
