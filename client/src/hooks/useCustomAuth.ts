@@ -31,17 +31,25 @@ export function useCustomAuth() {
         credentials: 'include',
       });
       
-      // Clear all cached data
+      // Set auth status to logged out immediately
+      queryClient.setQueryData(['/api/auth/status'], {
+        authenticated: false,
+        user: null
+      });
+      
+      // Clear all other cached data
       queryClient.clear();
       
-      // Force immediate refresh of auth status by removing stale data
-      queryClient.removeQueries({ queryKey: ['/api/auth/status'] });
-      
-      // Force refetch with fresh data
-      await queryClient.refetchQueries({ queryKey: ['/api/auth/status'] });
+      // Force refetch to ensure server state is synced
+      queryClient.invalidateQueries({ queryKey: ['/api/auth/status'] });
       
     } catch (error) {
       console.error('Logout error:', error);
+      // Even if logout fails, clear local state
+      queryClient.setQueryData(['/api/auth/status'], {
+        authenticated: false,
+        user: null
+      });
     }
   };
 
