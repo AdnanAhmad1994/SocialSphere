@@ -75,14 +75,6 @@ export default function Header({ user, pendingCount = 0, onAuth, onLogout }: Hea
                   >
                     <Bell className="h-5 w-5" />
                   </Button>
-                  {pendingCount > 0 && (
-                    <Badge 
-                      className="absolute -top-2 -right-2 h-5 w-5 rounded-full p-0 text-xs bg-destructive text-destructive-foreground"
-                      data-testid="badge-pending-count"
-                    >
-                      {pendingCount > 99 ? '99+' : pendingCount}
-                    </Badge>
-                  )}
                 </div>
               )}
 
