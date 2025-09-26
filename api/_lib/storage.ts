@@ -10,7 +10,7 @@ import {
   updateUserSchema,
 } from '../../shared/schema';
 import { z } from 'zod';
-import { eq, desc, sql, count } from 'drizzle-orm';
+import { eq, desc, sql, count, and } from 'drizzle-orm';
 import bcrypt from 'bcrypt';
 
 // Initialize database connection pool
@@ -208,9 +208,9 @@ class Storage {
 
   async getContributorMetrics(userId: string) {
     const totalPosts = await db.select({ count: count() }).from(posts).where(eq(posts.authorId, userId));
-    const approvedPosts = await db.select({ count: count() }).from(posts).where(eq(posts.authorId, userId)).where(eq(posts.status, 'approved'));
-    const pendingPosts = await db.select({ count: count() }).from(posts).where(eq(posts.authorId, userId)).where(eq(posts.status, 'pending'));
-    const rejectedPosts = await db.select({ count: count() }).from(posts).where(eq(posts.authorId, userId)).where(eq(posts.status, 'rejected'));
+    const approvedPosts = await db.select({ count: count() }).from(posts).where(and(eq(posts.authorId, userId), eq(posts.status, 'approved')));
+    const pendingPosts = await db.select({ count: count() }).from(posts).where(and(eq(posts.authorId, userId), eq(posts.status, 'pending')));
+    const rejectedPosts = await db.select({ count: count() }).from(posts).where(and(eq(posts.authorId, userId), eq(posts.status, 'rejected')));
 
     return {
       totalPosts: totalPosts[0].count,

@@ -2,10 +2,12 @@
   "version": 2,
   "builds": [
     {
-      "src": "client/**",
+      "src": "client/package.json",
       "use": "@vercel/static-build",
       "config": {
-        "distDir": "dist"
+        "installCommand": "cd .. && npm ci",
+        "buildCommand": "cd .. && vite build",
+        "distDir": "../dist/public"
       }
     },
     {
@@ -15,17 +17,20 @@
   ],
   "routes": [
     {
+      "handle": "filesystem"
+    },
+    {
       "src": "/api/(.*)",
       "dest": "/api/$1"
     },
     {
       "src": "/(.*)",
-      "dest": "/client/$1"
+      "dest": "/index.html"
     }
   ],
   "functions": {
     "api/**/*.ts": {
-      "runtime": "nodejs18.x"
+      "runtime": "nodejs20.x"
     }
   },
   "env": {

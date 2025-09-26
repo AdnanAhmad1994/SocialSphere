@@ -16,7 +16,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Validate request body
     const { email, password } = adminLoginSchema.parse(req.body);
     
-    console.log('Admin login attempt:', { email, password });
+    console.log('Admin login attempt:', { email });
     
     // Authenticate admin
     const user = await authenticateAdmin(email, password);

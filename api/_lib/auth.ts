@@ -2,7 +2,12 @@ import jwt from 'jsonwebtoken';
 import bcrypt from 'bcrypt';
 // import { storage } from './storage'; // Will be imported inline to avoid circular dependency
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  throw new Error('JWT_SECRET environment variable is required');
+}
+// TypeScript assertion - we've verified it exists above
+const jwtSecret: string = JWT_SECRET;
 
 export interface JwtPayload {
   userId: string;
@@ -11,12 +16,13 @@ export interface JwtPayload {
 }
 
 export function generateToken(payload: JwtPayload): string {
-  return jwt.sign(payload, JWT_SECRET, { expiresIn: '7d' });
+  return jwt.sign(payload, jwtSecret, { expiresIn: '7d' });
 }
 
 export function verifyToken(token: string): JwtPayload | null {
   try {
-    return jwt.verify(token, JWT_SECRET) as JwtPayload;
+    const decoded = jwt.verify(token, jwtSecret);
+    return decoded as JwtPayload;
   } catch (error) {
     return null;
   }
