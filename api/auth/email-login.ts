@@ -36,10 +36,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       `token=${token}; HttpOnly; Secure; SameSite=Strict; Max-Age=${7 * 24 * 60 * 60}; Path=/`
     ]);
 
-    // Return user data
+    // Return user data and token for Vercel compatibility
     res.status(200).json({
       success: true,
-      user: user
+      user: user,
+      token: token // Include token in response for localStorage storage
     });
 
   } catch (error) {

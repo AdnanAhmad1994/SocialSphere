@@ -54,6 +54,10 @@ export default function CustomLoginForm({ onLoginSuccess }: CustomLoginFormProps
       const result = await response.json();
 
       if (response.ok) {
+        // Store JWT token if provided for Vercel deployment compatibility
+        if (result.token) {
+          localStorage.setItem('auth-token', result.token);
+        }
         onLoginSuccess();
         // Redirect to dashboard after successful login
         setLocation('/');
@@ -84,6 +88,10 @@ export default function CustomLoginForm({ onLoginSuccess }: CustomLoginFormProps
       const result = await response.json();
 
       if (response.ok) {
+        // Store JWT token if provided for Vercel deployment compatibility
+        if (result.token) {
+          localStorage.setItem('auth-token', result.token);
+        }
         onLoginSuccess();
         // Redirect to dashboard after successful login
         setLocation('/');

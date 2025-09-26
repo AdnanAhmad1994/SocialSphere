@@ -26,10 +26,21 @@ export function useCustomAuth() {
 
   const logout = async () => {
     try {
+      // Get JWT token for authorization
+      const token = localStorage.getItem('auth-token');
+      const headers: Record<string, string> = {};
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
+
       await fetch('/api/auth/logout', {
         method: 'POST',
         credentials: 'include',
+        headers,
       });
+      
+      // Clear JWT token from localStorage
+      localStorage.removeItem('auth-token');
       
       // Set auth status to logged out immediately
       queryClient.setQueryData(['/api/auth/status'], {
@@ -46,6 +57,7 @@ export function useCustomAuth() {
     } catch (error) {
       console.error('Logout error:', error);
       // Even if logout fails, clear local state
+      localStorage.removeItem('auth-token');
       queryClient.setQueryData(['/api/auth/status'], {
         authenticated: false,
         user: null
