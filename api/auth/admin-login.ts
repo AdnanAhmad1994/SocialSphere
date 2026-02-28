@@ -1,11 +1,6 @@
 import { VercelRequest, VercelResponse } from '@vercel/node';
 import { authenticateAdmin, generateToken } from '../_lib/auth';
-import { z } from 'zod';
-
-const adminLoginSchema = z.object({
-  email: z.string().email("Valid email address is required"),
-  password: z.string().min(1, "Password is required"),
-});
+import { adminLoginSchema } from '../../shared/schema';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
@@ -15,6 +10,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     // Validate request body
     const { email, password } = adminLoginSchema.parse(req.body);
+    const allowEmailOnly = process.env.ADMIN_EMAIL_ONLY === 'true' || process.env.NODE_ENV !== 'production';
+    if (!allowEmailOnly && (!password || password.trim() === '')) {
+      return res.status(400).json({ message: 'Password is required' });
+    }
     
     console.log('Admin login attempt:', { email });
     

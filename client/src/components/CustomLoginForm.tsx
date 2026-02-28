@@ -11,7 +11,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { adminLoginSchema, emailLoginSchema, type AdminLoginData, type EmailLoginData } from "@shared/schema";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Shield, Mail, Lock, Users } from "lucide-react";
+import { Shield, Mail, Lock, Users, Eye, EyeOff } from "lucide-react";
 
 interface CustomLoginFormProps {
   onLoginSuccess: () => void;
@@ -22,6 +22,10 @@ export default function CustomLoginForm({ onLoginSuccess }: CustomLoginFormProps
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("admin");
+  const [showAdminPassword, setShowAdminPassword] = useState(false);
+  const [seedStatus, setSeedStatus] = useState<string | null>(null);
+  const [seedEmail, setSeedEmail] = useState('admin@example.com');
+  const [seedPassword, setSeedPassword] = useState('Admin123!');
 
   const adminForm = useForm<AdminLoginData>({
     resolver: zodResolver(adminLoginSchema),
@@ -69,6 +73,36 @@ export default function CustomLoginForm({ onLoginSuccess }: CustomLoginFormProps
       console.error('Admin login error:', error);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleSeedAdmin = async () => {
+    setSeedStatus(null);
+    setError(null);
+    try {
+      const resp = await fetch('/api/admin/seed', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-seed-token': 'dev-seed',
+        },
+        body: JSON.stringify({
+          email: seedEmail || 'admin@example.com',
+          password: seedPassword || 'Admin123!',
+          firstName: 'Admin',
+          lastName: 'User',
+        }),
+      });
+      const result = await resp.json();
+      if (resp.ok && result?.success) {
+        adminForm.setValue('email', seedEmail || 'admin@example.com');
+        adminForm.setValue('password', seedPassword || 'Admin123!');
+        setSeedStatus(`Admin user created (${seedEmail}). You can now sign in.`);
+      } else {
+        setError(result?.message || 'Failed to seed admin. Ensure the server was started with ADMIN_SEED_TOKEN=dev-seed');
+      }
+    } catch (e) {
+      setError('Network error while seeding admin');
     }
   };
 
@@ -162,6 +196,7 @@ export default function CustomLoginForm({ onLoginSuccess }: CustomLoginFormProps
                               placeholder="admin@example.com"
                               className="pl-10"
                               data-testid="input-admin-email"
+                              autoComplete="email"
                               disabled={isLoading}
                             />
                           </div>
@@ -182,12 +217,26 @@ export default function CustomLoginForm({ onLoginSuccess }: CustomLoginFormProps
                             <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                             <Input
                               {...field}
-                              type="password"
+                              type={showAdminPassword ? "text" : "password"}
                               placeholder="Enter your password"
                               className="pl-10"
                               data-testid="input-admin-password"
+                              autoComplete="current-password"
                               disabled={isLoading}
                             />
+                            <button
+                              type="button"
+                              onClick={() => setShowAdminPassword((s) => !s)}
+                              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                              aria-label={showAdminPassword ? "Hide password" : "Show password"}
+                              data-testid="toggle-admin-password-visibility"
+                            >
+                              {showAdminPassword ? (
+                                <EyeOff className="h-4 w-4" />
+                              ) : (
+                                <Eye className="h-4 w-4" />
+                              )}
+                            </button>
                           </div>
                         </FormControl>
                         <FormMessage />
@@ -205,6 +254,38 @@ export default function CustomLoginForm({ onLoginSuccess }: CustomLoginFormProps
                   </Button>
                 </form>
               </Form>
+
+              {import.meta.env.DEV && (
+                <div className="mt-2 space-y-2">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                    <Input
+                      value={seedEmail}
+                      onChange={(e) => setSeedEmail(e.target.value)}
+                      placeholder="admin email (e.g., admin@riphah.edu.pk)"
+                      data-testid="input-seed-email"
+                    />
+                    <Input
+                      value={seedPassword}
+                      onChange={(e) => setSeedPassword(e.target.value)}
+                      placeholder="optional password"
+                      data-testid="input-seed-password"
+                    />
+                  </div>
+                  {seedStatus && (
+                    <p className="text-xs text-green-600">{seedStatus}</p>
+                  )}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleSeedAdmin}
+                    data-testid="button-seed-admin"
+                  >
+                    Seed Admin (dev)
+                  </Button>
+                  <p className="text-[11px] text-muted-foreground">Uses token 'dev-seed'. Start server with ADMIN_SEED_TOKEN=dev-seed.</p>
+                </div>
+              )}
             </TabsContent>
 
             {/* Contributor Login Tab */}

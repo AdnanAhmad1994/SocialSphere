@@ -67,7 +67,7 @@ export async function authenticateUser(req: any): Promise<JwtPayload | null> {
   return payload;
 }
 
-export async function authenticateAdmin(email: string, password: string): Promise<any | null> {
+export async function authenticateAdmin(email: string, password?: string): Promise<any | null> {
   try {
     const { storage } = await import('./storage');
     const user = await storage.authenticateAdmin(email, password);

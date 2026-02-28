@@ -68,6 +68,8 @@ export default function AdminDashboard({
   const [statusFilter, setStatusFilter] = useState("all");
   const [roleFilter, setRoleFilter] = useState("all");
   const [selectedPosts, setSelectedPosts] = useState<string[]>([]);
+  const [demoLogs, setDemoLogs] = useState<string[]>([]);
+  const [demoRunning, setDemoRunning] = useState(false);
   
   // Email whitelist state
   const [newEmail, setNewEmail] = useState("");
@@ -216,6 +218,66 @@ export default function AdminDashboard({
     removeEmailMutation.mutate(id);
   };
 
+  // Dev-only: run a short sequence of operations and log results
+  const runDemoOps = async () => {
+    setDemoLogs([]);
+    setDemoRunning(true);
+    const log = (m: string) => setDemoLogs((prev) => [...prev, m]);
+    try {
+      // 1) Add a whitelist email
+      const demoEmail = `demo_${Date.now()}@example.com`;
+      log(`Adding whitelist email: ${demoEmail}`);
+      const addEmailRes = await fetch('/api/admin/whitelist', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: demoEmail }),
+      });
+      if (!addEmailRes.ok && addEmailRes.status !== 409) {
+        throw new Error(`Failed to add email (${addEmailRes.status})`);
+      }
+      log(addEmailRes.status === 409 ? 'Email already whitelisted' : 'Email whitelisted');
+
+      // 2) Create a demo post (as admin)
+      const caption = `Demo post at ${new Date().toLocaleString()}`;
+      log(`Creating post: "${caption}"`);
+      // Use multipart FormData to be compatible with multer, but without files
+      const fd = new FormData();
+      fd.set('caption', caption);
+      const createPostRes = await fetch('/api/posts', { method: 'POST', body: fd });
+      const created = await createPostRes.json();
+      if (!createPostRes.ok) {
+        throw new Error(`Failed to create post: ${created?.message || createPostRes.status}`);
+      }
+      log(`Post created with id: ${created.id}`);
+
+      // 3) Approve the post
+      log('Approving post...');
+      const approveRes = await fetch(`/api/posts/${created.id}/approve`, { method: 'PUT' });
+      const approved = await approveRes.json();
+      if (!approveRes.ok) {
+        throw new Error(`Failed to approve post: ${approved?.message || approveRes.status}`);
+      }
+      log('Post approved');
+
+      // 4) Fetch stats
+      log('Fetching stats...');
+      const statsRes = await fetch('/api/stats');
+      const statsJson = await statsRes.json();
+      if (!statsRes.ok) {
+        throw new Error(`Failed to fetch stats: ${statsRes.status}`);
+      }
+      log(`Stats -> total: ${statsJson.totalPosts ?? statsJson.totalSubmitted}, pending: ${statsJson.pendingPosts ?? statsJson.totalPending}, approved: ${statsJson.approvedPosts ?? 'n/a'}`);
+
+      // Refresh whitelist list on UI
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/whitelist'] });
+      log('Demo complete');
+    } catch (e: any) {
+      log(`Error: ${e.message || 'Unknown error'}`);
+    } finally {
+      setDemoRunning(false);
+    }
+  };
+
   return (
     <div className="max-w-6xl mx-auto p-6 space-y-6">
       {/* Dashboard Header */}
@@ -326,6 +388,28 @@ export default function AdminDashboard({
               </CardContent>
             </Card>
           </Link>
+          {import.meta.env.DEV && (
+            <Card className="h-full">
+              <CardHeader className="pb-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium">Demo Operations</span>
+                </div>
+              </CardHeader>
+              <CardContent className="pt-0 space-y-2">
+                <p className="text-sm text-muted-foreground">Run a quick sequence: whitelist email → create post → approve → fetch stats.</p>
+                <Button onClick={runDemoOps} disabled={demoRunning} data-testid="button-run-demo">
+                  {demoRunning ? 'Running…' : 'Run Demo Ops (dev)'}
+                </Button>
+                {demoLogs.length > 0 && (
+                  <div className="mt-2 max-h-40 overflow-auto rounded-md border p-2 text-xs">
+                    {demoLogs.map((l, i) => (
+                      <div key={i} className="py-0.5">{l}</div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
         </div>
       </div>
 

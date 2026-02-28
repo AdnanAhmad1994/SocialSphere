@@ -45,7 +45,7 @@ export interface IStorage {
   bulkAddWhitelistedEmails(emails: string[], addedBy: string): Promise<WhitelistedEmail[]>;
   
   // Custom authentication methods
-  authenticateAdmin(email: string, password: string): Promise<User | null>;
+  authenticateAdmin(email: string, password?: string): Promise<User | null>;
   authenticateWhitelistedUser(email: string): Promise<User | null>;
   createAdminUser(email: string, password: string, firstName: string, lastName: string): Promise<User>;
   
@@ -221,18 +221,22 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Custom authentication methods
-  async authenticateAdmin(email: string, password: string): Promise<User | null> {
+  async authenticateAdmin(email: string, password?: string): Promise<User | null> {
     const [user] = await db
       .select()
       .from(users)
       .where(eq(users.email, email.toLowerCase()));
     
-    if (!user || user.role !== 'admin' || !user.password) {
+    if (!user || user.role !== 'admin') {
       return null;
     }
     
-    const isValidPassword = await bcrypt.compare(password, user.password);
-    return isValidPassword ? user : null;
+    // If password provided, verify; if not, allow email-only admin login
+    if (password && user.password) {
+      const isValidPassword = await bcrypt.compare(password, user.password);
+      return isValidPassword ? user : null;
+    }
+    return user;
   }
 
   async authenticateWhitelistedUser(email: string): Promise<User | null> {
@@ -603,18 +607,21 @@ export class MemStorage implements IStorage {
   }
 
   // Custom authentication methods
-  async authenticateAdmin(email: string, password: string): Promise<User | null> {
+  async authenticateAdmin(email: string, password?: string): Promise<User | null> {
     const normalizedEmail = email.toLowerCase();
     const user = Array.from(this.users.values()).find(
       u => u.email === normalizedEmail && u.role === 'admin'
     );
     
-    if (!user || !user.password) {
+    if (!user) {
       return null;
     }
     
-    const isValidPassword = await bcrypt.compare(password, user.password);
-    return isValidPassword ? user : null;
+    if (password && user.password) {
+      const isValidPassword = await bcrypt.compare(password, user.password);
+      return isValidPassword ? user : null;
+    }
+    return user;
   }
 
   async authenticateWhitelistedUser(email: string): Promise<User | null> {
@@ -769,5 +776,7 @@ export class MemStorage implements IStorage {
   }
 }
 
-// Use database storage in production, memory storage for development
-export const storage = new DatabaseStorage();
+// Use database storage when DATABASE_URL is provided, otherwise in-memory storage
+export const storage = process.env.DATABASE_URL
+  ? new DatabaseStorage()
+  : new MemStorage();

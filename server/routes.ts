@@ -57,6 +57,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // One-time Admin seed endpoint (guarded by ADMIN_SEED_TOKEN)
+  // Usage:
+  //   curl -X POST http://127.0.0.1:5000/api/admin/seed \
+  //     -H "Content-Type: application/json" \
+  //     -H "x-seed-token: $ADMIN_SEED_TOKEN" \
+  //     -d '{"email":"admin@example.com","password":"Admin123!","firstName":"Admin","lastName":"User"}'
+  app.post('/api/admin/seed', async (req: any, res) => {
+    try {
+      const requiredToken = process.env.ADMIN_SEED_TOKEN;
+      if (!requiredToken) {
+        return res.status(400).json({ message: 'ADMIN_SEED_TOKEN not configured' });
+      }
+      const provided = req.get('x-seed-token');
+      if (provided !== requiredToken) {
+        return res.status(403).json({ message: 'Forbidden' });
+      }
+
+      const { email = 'admin@example.com', password = 'Admin123!', firstName = 'Admin', lastName = 'User' } = req.body || {};
+
+      const admin = await storage.createAdminUser(email, password, firstName, lastName);
+      return res.json({ success: true, admin: { id: admin.id, email: admin.email, role: admin.role }, credentials: { email, password } });
+    } catch (error: any) {
+      // Likely already exists (unique email constraint)
+      return res.status(409).json({ message: 'Admin may already exist', error: error?.message || 'Conflict' });
+    }
+  });
+
   // Post routes
   app.get('/api/posts', isCustomAuthenticated, async (req: any, res) => {
     try {

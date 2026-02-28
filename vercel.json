@@ -5,7 +5,7 @@
       "destination": "/index.html"
     }
   ],
-  "buildCommand": "vite build",
-  "outputDirectory": "dist",
+  "buildCommand": "npm run build:vercel",
+  "outputDirectory": "dist/public",
   "installCommand": "npm install"
 }

@@ -106,7 +106,8 @@ export const insertWhitelistedEmailSchema = createInsertSchema(whitelistedEmails
 // Authentication schemas
 export const adminLoginSchema = z.object({
   email: z.string().email("Valid email address is required"),
-  password: z.string().min(1, "Password is required"),
+  // Password is optional for admin email-only login flows
+  password: z.string().min(1, "Password is required").optional(),
 });
 
 export const emailLoginSchema = z.object({

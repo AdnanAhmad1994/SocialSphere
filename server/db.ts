@@ -4,11 +4,12 @@ import * as schema from "@shared/schema";
 
 const { Pool } = pg;
 
-if (!process.env.DATABASE_URL) {
-  throw new Error(
-    "DATABASE_URL must be set. Did you forget to provision a database?",
-  );
-}
+// Initialize database only when DATABASE_URL is provided. This allows
+// development to run with in-memory storage without crashing on import.
+export const pool = process.env.DATABASE_URL
+  ? new Pool({ connectionString: process.env.DATABASE_URL })
+  : (undefined as any);
 
-export const pool = new Pool({ connectionString: process.env.DATABASE_URL });
-export const db = drizzle({ client: pool, schema });
+export const db = process.env.DATABASE_URL
+  ? drizzle({ client: pool, schema })
+  : (undefined as any);

@@ -127,17 +127,19 @@ class Storage {
     return result;
   }
 
-  async authenticateAdmin(email: string, password: string) {
+  async authenticateAdmin(email: string, password?: string) {
     const result = await db.select().from(users).where(eq(users.email, email)).limit(1);
     const user = result[0];
     
-    if (!user || user.role !== 'admin' || !user.password) {
+    if (!user || user.role !== 'admin') {
       throw new Error('Invalid credentials');
     }
     
-    const isValid = await bcrypt.compare(password, user.password);
-    if (!isValid) {
-      throw new Error('Invalid credentials');
+    if (password && user.password) {
+      const isValid = await bcrypt.compare(password, user.password);
+      if (!isValid) {
+        throw new Error('Invalid credentials');
+      }
     }
     
     return user;
